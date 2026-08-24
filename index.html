@@ -3,157 +3,269 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#f7f5ef" />
+  <meta name="theme-color" content="#f4f2eb" />
+  <meta name="description" content="泣语——婴儿哭声理解与家庭照护助手" />
   <title>泣语 CrySense</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><circle cx=%2232%22 cy=%2232%22 r=%2230%22 fill=%22%2324322e%22/><path d=%22M22 35v-6M32 41V23M42 35v-6%22 stroke=%22%23f6f4ee%22 stroke-width=%224%22 stroke-linecap=%22round%22/></svg>" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><circle cx=%2232%22 cy=%2232%22 r=%2230%22 fill=%22%23293833%22/><path d=%22M22 35v-6M32 41V23M42 35v-6%22 stroke=%22%23f6f4ee%22 stroke-width=%224%22 stroke-linecap=%22round%22/></svg>" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
-      <a class="brand" href="#" aria-label="泣语首页">
-        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
-        <span>泣语 <small>CrySense</small></span>
-      </a>
-      <button class="avatar" type="button" aria-label="宝宝档案" id="profileButton">禾禾</button>
+    <header class="topbar" id="topbar">
+      <button class="baby-switch" type="button" id="babySwitch" aria-label="切换宝宝">
+        <span class="baby-avatar">禾</span>
+        <span><b>禾禾</b><small>4 个月 · 女宝</small></span>
+        <i>⌄</i>
+      </button>
+      <div class="top-actions">
+        <button class="icon-button" id="notificationButton" type="button" aria-label="通知"><span>♢</span><i></i></button>
+        <button class="caregiver-chip" id="caregiverButton" type="button"><span>爸</span>爸爸照护中</button>
+      </div>
     </header>
 
     <main>
-      <section class="view active" id="homeView" aria-labelledby="homeTitle">
-        <div class="eyebrow-row">
-          <p class="eyebrow"><span class="status-dot"></span> 今天状态平稳</p>
-          <p class="date-label" id="todayLabel"></p>
+      <section class="view active" id="todayView" aria-labelledby="todayTitle">
+        <div class="page-intro">
+          <p class="eyebrow" id="dateLabel">8 月 24 日 · 周一</p>
+          <h1 id="todayTitle">下午好，<em>慢慢来。</em></h1>
+          <p>今天的状态、记录与下一步，都在这里。</p>
         </div>
-        <h1 id="homeTitle">听见哭声背后的<br /><em>小小需要。</em></h1>
-        <p class="lead">录下 10 秒哭声，获得温和、清晰的照护参考。</p>
 
-        <button class="listen-card" id="startButton" type="button">
-          <span class="listen-copy">
-            <span class="listen-kicker">AI 哭声分析</span>
-            <strong>开始聆听</strong>
-            <small>请将手机放在宝宝身边 30–50 cm</small>
-          </span>
-          <span class="listen-orb" aria-hidden="true">
-            <span class="orb-ring ring-one"></span>
-            <span class="orb-ring ring-two"></span>
-            <span class="mic-icon"></span>
-          </span>
-        </button>
-
-        <section class="today-section" aria-labelledby="todayTitle">
-          <div class="section-heading">
-            <div><p class="eyebrow">宝宝概况</p><h2 id="todayTitle">禾禾的今天</h2></div>
-            <button class="text-button" data-nav="insights" type="button">查看趋势 <span>↗</span></button>
+        <section class="now-card" aria-labelledby="nowTitle">
+          <div class="now-top">
+            <div><p class="eyebrow light">当前状态</p><h2 id="nowTitle"><span class="live-dot"></span><b id="currentStatus">清醒中</b></h2></div>
+            <button class="soft-button" id="handoffButton" type="button">照护交接</button>
           </div>
-          <div class="stats-grid">
-            <article class="stat-card accent-lilac"><span class="stat-icon">◌</span><strong id="todayCount">3</strong><small>次哭闹</small><p><span>↓ 1</span> 较昨日</p></article>
-            <article class="stat-card"><span class="stat-icon">◷</span><strong id="todayMinutes">12</strong><small>分钟</small><p>平均 4 分钟</p></article>
-            <article class="stat-card"><span class="stat-icon">⌁</span><strong>2h</strong><small>距上次喂奶</small><p>14:30 记录</p></article>
+          <div class="status-time"><strong id="awakeDuration">1<small>小时</small> 26<small>分钟</small></strong><span>从 13:04 开始</span></div>
+          <div class="status-facts">
+            <div><i class="feed-icon">◒</i><span>上次喂养<strong id="lastFeedText">2 小时前</strong></span></div>
+            <div><i class="diaper-icon">◇</i><span>最近尿布<strong id="lastDiaperText">48 分钟前</strong></span></div>
+            <div><i class="sleep-icon">☾</i><span>今日睡眠<strong id="sleepTotalText">4 小时 10 分</strong></span></div>
           </div>
         </section>
 
-        <aside class="safety-note">
-          <span class="shield-icon">✦</span>
-          <div><strong>你最了解自己的宝宝</strong><p>结果仅供照护参考，不构成医疗诊断。若宝宝出现呼吸困难、发绀或反应异常，请立即就医。</p></div>
-          <button id="safetyMore" type="button" aria-label="查看安全说明">›</button>
+        <section class="context-card">
+          <div class="context-icon">✦</div>
+          <div><p class="eyebrow">值得留意</p><h3>这次清醒时间稍长</h3><p>禾禾已经清醒 1 小时 26 分，比近 7 天常见时长多约 18 分钟。若开始揉眼或转头，可以提前降低刺激。</p><button class="inline-link" data-nav="insights" type="button">查看依据 <span>→</span></button></div>
+          <span class="source-label">基于 7 天记录</span>
+        </section>
+
+        <button class="listen-hero" id="listenHero" type="button">
+          <span class="hero-copy"><small>宝宝正在哭？</small><strong>听听她想说什么</strong><span>10 秒哭声分析 · 仅作照护参考</span></span>
+          <span class="sound-orb" aria-hidden="true"><i></i><i></i><i></i><b></b></span>
+        </button>
+
+        <section class="quick-section" aria-labelledby="quickTitle">
+          <div class="section-heading"><div><p class="eyebrow">快速记录</p><h2 id="quickTitle">刚刚发生了什么？</h2></div><button class="inline-link" id="customizeQuick" type="button">自定义</button></div>
+          <div class="quick-grid">
+            <button class="quick-action mint" type="button" data-log="feeding"><span>◒</span><b>喂养</b><small>上次 14:30</small></button>
+            <button class="quick-action lilac" type="button" data-log="sleep"><span>☾</span><b>睡眠</b><small>累计 4h 10m</small></button>
+            <button class="quick-action sand" type="button" data-log="diaper"><span>◇</span><b>尿布</b><small>上次 15:42</small></button>
+            <button class="quick-action rose" type="button" data-log="soothing"><span>∿</span><b>安抚</b><small>抱哄最有效</small></button>
+            <button class="quick-action sky" type="button" data-log="temperature"><span>°</span><b>体温</b><small>尚未记录</small></button>
+            <button class="quick-action plain" type="button" data-log="note"><span>＋</span><b>更多</b><small>备注与事件</small></button>
+          </div>
+        </section>
+
+        <section class="day-summary" aria-labelledby="summaryTitle">
+          <div class="section-heading"><div><p class="eyebrow">今日摘要</p><h2 id="summaryTitle">禾禾的一天</h2></div><button class="inline-link" data-nav="timeline" type="button">完整时间线 <span>→</span></button></div>
+          <div class="summary-strip">
+            <div><span>◒</span><strong id="feedCount">5</strong><small>次喂养</small></div>
+            <div><span>☾</span><strong id="sleepHours">4.2h</strong><small>累计睡眠</small></div>
+            <div><span>◇</span><strong id="diaperCount">4</strong><small>次尿布</small></div>
+            <div><span>∿</span><strong id="cryCount">3</strong><small>次哭闹</small></div>
+          </div>
+          <div class="mini-timeline" id="todayTimeline"></div>
+        </section>
+
+        <aside class="handoff-note">
+          <span class="note-avatar">妈</span>
+          <div><p class="eyebrow">妈妈 · 13:02 留言</p><strong>下一次醒来后留意左侧脸颊</strong><p>中午有一点泛红，暂时没有加重。</p></div>
+          <button id="completeHandoff" type="button">标记已读</button>
         </aside>
       </section>
 
-      <section class="view analysis-view" id="analysisView" aria-labelledby="analysisTitle">
-        <button class="back-button" id="cancelAnalysis" type="button">← <span>返回</span></button>
-        <div class="analysis-head">
-          <p class="eyebrow" id="analysisEyebrow">准备聆听</p>
-          <h1 id="analysisTitle">让我们听听宝宝<br />想说什么</h1>
-          <p id="analysisHint">保持手机距离宝宝约 30–50 cm，尽量减少电视和谈话声。</p>
+      <section class="view" id="timelineView" aria-labelledby="timelineTitle">
+        <div class="page-heading">
+          <div><p class="eyebrow">所有照护记录</p><h1 id="timelineTitle">家庭时间线</h1><p>谁在什么时候做了什么，一目了然。</p></div>
+          <button class="round-add" type="button" data-log="note" aria-label="新增记录">＋</button>
         </div>
-
-        <div class="recorder" id="recorder">
-          <div class="quality-pill" id="qualityPill"><span></span><b>等待开始</b></div>
-          <canvas id="waveform" width="640" height="180" aria-label="实时声音波形"></canvas>
-          <div class="timer"><strong id="timerValue">10</strong><span>秒</span></div>
-          <p class="record-status" id="recordStatus">准备好后轻触按钮</p>
-          <button class="record-button" id="recordButton" type="button" aria-label="开始录音"><span></span></button>
-          <button class="demo-link" id="demoButton" type="button">没有麦克风？体验演示分析</button>
+        <div class="filter-row" id="timelineFilters">
+          <button class="active" type="button" data-filter="all">全部</button>
+          <button type="button" data-filter="feeding">喂养</button>
+          <button type="button" data-filter="sleep">睡眠</button>
+          <button type="button" data-filter="diaper">尿布</button>
+          <button type="button" data-filter="cry">哭闹</button>
+          <button type="button" data-filter="soothing">安抚</button>
         </div>
+        <div class="timeline-context">
+          <div><span class="live-dot"></span><b>爸爸照护中</b><small>已接手 2 小时 18 分</small></div>
+          <button id="endShiftButton" type="button">结束并交接</button>
+        </div>
+        <div class="date-divider"><span>今天</span><small id="eventCountLabel">12 条记录</small></div>
+        <div class="full-timeline" id="fullTimeline"></div>
+        <p class="timeline-end">今天的记录到这里 · 数据仅家庭可见</p>
       </section>
 
-      <section class="view result-view" id="resultView" aria-labelledby="resultTitle">
-        <div class="result-topline"><button class="back-button" data-nav="home" type="button">← <span>完成</span></button><span class="demo-badge">模拟分析</span></div>
-        <div class="result-hero">
-          <div class="confidence-ring" id="confidenceRing"><strong id="topProbability">78%</strong><small>匹配度</small></div>
-          <p class="eyebrow" id="confidenceLabel">较高置信度</p>
-          <h1 id="resultTitle">宝宝可能是<em id="topReason">饿了</em></h1>
-          <p id="resultSummary">哭声节奏与宝宝的近期喂养间隔，都更接近饥饿信号。</p>
+      <section class="view listen-view" id="listenView" aria-labelledby="listenTitle">
+        <div id="recorderStage">
+          <div class="page-heading compact-heading"><div><p class="eyebrow">AI 哭声分析</p><h1 id="listenTitle">让我们听听<br /><em>禾禾想说什么</em></h1><p>手机距离宝宝约 30–50 cm，尽量避开成人说话声。</p></div><span class="demo-tag">演示模式</span></div>
+          <section class="context-snapshot">
+            <p class="eyebrow">本次自动带入</p>
+            <div><span>◒ 2 小时前喂养</span><span>☾ 清醒 1h 26m</span><span>◇ 48 分前换尿布</span></div>
+            <small>这些信息只作为分析上下文，可在结果页查看影响。</small>
+          </section>
+          <div class="recorder-panel">
+            <div class="quality-pill" id="qualityPill"><i></i><b>等待开始</b></div>
+            <canvas id="waveform" width="720" height="200" aria-label="实时声音波形"></canvas>
+            <div class="timer"><strong id="timerValue">10</strong><span>秒</span></div>
+            <p id="recordStatus">准备好后轻触按钮</p>
+            <button class="record-button" id="recordButton" type="button" aria-label="开始录音"><span></span></button>
+            <button class="demo-link" id="demoButton" type="button">没有麦克风？体验演示分析</button>
+          </div>
+          <aside class="safety-inline"><span>!</span><p><strong>先观察宝宝的整体状态</strong>如出现呼吸困难、发绀、抽搐或反应异常，请立即寻求专业医疗帮助。</p></aside>
         </div>
 
-        <section class="probability-card" aria-labelledby="probabilityTitle">
-          <div class="section-heading compact"><h2 id="probabilityTitle">可能性分布</h2><span id="qualityResult">音频清晰</span></div>
-          <div class="probability-row"><div><span class="reason-dot hunger"></span><b>饥饿</b><strong id="hungerValue">78%</strong></div><div class="bar"><i id="hungerBar"></i></div></div>
-          <div class="probability-row"><div><span class="reason-dot sleepy"></span><b>困倦</b><strong id="sleepyValue">14%</strong></div><div class="bar"><i id="sleepyBar"></i></div></div>
-          <div class="probability-row"><div><span class="reason-dot discomfort"></span><b>身体不适</b><strong id="discomfortValue">8%</strong></div><div class="bar"><i id="discomfortBar"></i></div></div>
-        </section>
-
-        <section class="advice-card" id="adviceCard">
-          <span class="advice-number">01</span>
-          <div><p class="eyebrow">可以先试试</p><h2 id="adviceTitle">按熟悉的方式喂养</h2><p id="adviceBody">距离上次喂奶约 2 小时。观察宝宝是否主动寻找、吮吸或逐渐平静。</p></div>
-          <span class="advice-art" aria-hidden="true">◡</span>
-        </section>
-
-        <section class="checklist-card hidden" id="checklistCard">
-          <p class="eyebrow">一步一步排查</p>
-          <h2>暂时还不能确定原因</h2>
-          <p>先从最常见、最容易处理的情况开始。</p>
-          <div class="check-list" id="checkList">
-            <label><input type="checkbox" /><span>距离上次喂奶是否较久？</span></label>
-            <label><input type="checkbox" /><span>尿布是否需要更换？</span></label>
-            <label><input type="checkbox" /><span>是否需要拍嗝或调整姿势？</span></label>
-            <label><input type="checkbox" /><span>室温、衣物和光线是否舒适？</span></label>
-            <label class="urgent"><input type="checkbox" /><span>检查体温、呼吸、肤色与精神状态</span></label>
-          </div>
-        </section>
-
-        <section class="feedback-card" id="feedbackCard">
-          <div><p class="eyebrow">帮助我们更懂禾禾</p><h2>这个判断有帮助吗？</h2></div>
-          <div class="feedback-actions">
-            <button type="button" data-feedback="helpful">有帮助</button>
-            <button type="button" data-feedback="unsure">还不确定</button>
-            <button type="button" data-feedback="wrong">不太符合</button>
-          </div>
-          <p class="feedback-thanks hidden" id="feedbackThanks">谢谢你的反馈，已保存到禾禾的记录中。</p>
-        </section>
-        <p class="medical-note">泣语提供照护辅助参考，不替代专业医疗判断。</p>
+        <div class="hidden" id="resultStage">
+          <div class="result-heading"><button class="back-link" id="newAnalysisButton" type="button">← 重新分析</button><span class="demo-tag">模拟分析</span></div>
+          <section class="result-hero">
+            <div class="match-ring" id="matchRing"><span><strong id="topProbability">72%</strong><small>综合匹配度</small></span></div>
+            <p class="eyebrow" id="confidenceLabel">中等置信度 · 建议排查</p>
+            <h1>更可能是<em id="topReason">困倦</em></h1>
+            <p id="resultSummary">仅凭这段声音还不能可靠判断，建议结合当前状态逐项排查。</p>
+          </section>
+          <section class="quality-grid">
+            <div><small>音频质量</small><strong id="audioQuality">清晰</strong><span class="meter"><i style="width:84%"></i></span></div>
+            <div><small>上下文完整度</small><strong>3 / 4 项</strong><span class="meter lilac-meter"><i style="width:75%"></i></span></div>
+          </section>
+          <section class="result-card probability-card">
+            <div class="section-heading"><div><p class="eyebrow">可能性分布</p><h2>声音与状态综合结果</h2></div><button class="info-button" id="probabilityInfo" type="button">?</button></div>
+            <div class="prob-row"><div><i class="dot hunger-dot"></i><b>饥饿</b><strong id="hungerValue">18%</strong></div><span><i id="hungerBar"></i></span></div>
+            <div class="prob-row"><div><i class="dot sleepy-dot"></i><b>困倦</b><strong id="sleepyValue">70%</strong></div><span><i id="sleepyBar"></i></span></div>
+            <div class="prob-row"><div><i class="dot discomfort-dot"></i><b>一般性不适</b><strong id="discomfortValue">12%</strong></div><span><i id="discomfortBar"></i></span></div>
+          </section>
+          <section class="result-card evidence-card">
+            <div><p class="eyebrow">判断依据</p><h2>哪些信息影响了结果</h2></div>
+            <ul id="evidenceList">
+              <li class="support"><span>↑</span><p><b>支持困倦</b>哭声强度逐渐回落，接近禾禾以往困倦时的节奏。</p></li>
+              <li class="support"><span>↑</span><p><b>支持困倦</b>当前清醒时长比近 7 天常见时长多约 18 分钟。</p></li>
+              <li class="neutral"><span>·</span><p><b>仍有不确定</b>录音中有少量背景谈话声。</p></li>
+            </ul>
+          </section>
+          <section class="result-card action-card" id="actionCard">
+            <p class="eyebrow">可以先试试</p><h2 id="actionTitle">降低刺激，准备入睡</h2><p id="actionDescription">调暗灯光、减少说话与逗弄，使用禾禾熟悉的抱哄方式，观察 10 分钟。</p>
+            <div class="action-meta"><span>预计观察 10 分钟</span><span>过去 5 次中缓解 3 次</span></div>
+            <button class="primary-button" id="startObserveButton" type="button">开始照做并观察</button>
+            <button class="secondary-button" id="otherActionsButton" type="button">查看其他方式</button>
+          </section>
+          <section class="result-card checklist-card hidden" id="checklistCard">
+            <p class="eyebrow">一步一步排查</p><h2>暂时还不能确定原因</h2><p>从最常见、最容易处理的情况开始。</p>
+            <div id="checklistItems">
+              <label><input type="checkbox" /><span><b>喂养</b>距离上次喂奶是否较久？</span></label>
+              <label><input type="checkbox" /><span><b>尿布</b>是否需要更换？</span></label>
+              <label><input type="checkbox" /><span><b>姿势</b>是否需要拍嗝或调整姿势？</span></label>
+              <label><input type="checkbox" /><span><b>环境</b>冷热、衣物、光线是否舒适？</span></label>
+            </div>
+          </section>
+          <p class="medical-note">泣语提供照护辅助参考，不替代专业医疗判断。</p>
+        </div>
       </section>
 
       <section class="view insights-view" id="insightsView" aria-labelledby="insightsTitle">
-        <div class="eyebrow-row"><div><p class="eyebrow">近 7 天</p><h1 id="insightsTitle">禾禾的节奏</h1></div><button class="period-button" type="button">本周⌄</button></div>
-        <p class="lead">记录不是为了追求完美，而是更从容地理解变化。</p>
+        <div class="page-heading"><div><p class="eyebrow">近 7 天 · 8/18—8/24</p><h1 id="insightsTitle">禾禾的节奏</h1><p>先看变化，再回到每一次真实记录。</p></div><button class="period-button" type="button">本周⌄</button></div>
+        <section class="insight-lead">
+          <span class="spark">✦</span><div><p class="eyebrow">本周小结</p><h2>晚间哭闹减少了</h2><p>18:00—21:00 的哭闹比上周少 3 次；在已反馈记录中，提前降低刺激后更容易缓解。</p><button class="inline-link" type="button" data-insight-detail>查看相关 6 条记录 →</button></div>
+        </section>
         <div class="insight-summary">
-          <div><small>本周哭闹</small><strong id="weekCount">18 次</strong><span>比上周少 12%</span></div>
-          <div><small>最常出现</small><strong>18:00–21:00</strong><span>晚间时段</span></div>
+          <div><small>本周哭闹</small><strong id="weekCryCount">18<em>次</em></strong><span class="down">↓ 12% 较上周</span></div>
+          <div><small>累计时长</small><strong>76<em>分钟</em></strong><span>平均 4.2 分钟</span></div>
+          <div><small>反馈完整度</small><strong>83<em>%</em></strong><span>15 / 18 次</span></div>
         </div>
         <section class="chart-card">
-          <div class="section-heading compact"><div><p class="eyebrow">每日次数</p><h2>一周趋势</h2></div><span class="chart-legend"><i></i> 哭闹</span></div>
-          <div class="bar-chart" id="weeklyChart" aria-label="近七天哭闹次数柱状图"></div>
+          <div class="section-heading"><div><p class="eyebrow">多维趋势</p><h2>哭闹与睡眠</h2></div><div class="legend"><span><i></i>哭闹</span><span><i></i>睡眠</span></div></div>
+          <div class="combo-chart" id="comboChart"></div>
+          <p class="chart-note">周四睡眠较少，当天哭闹记录也较多；这只是同时出现，不代表因果关系。</p>
         </section>
-        <section class="reason-card">
-          <div class="section-heading compact"><div><p class="eyebrow">已反馈记录</p><h2>主要原因</h2></div></div>
-          <div class="reason-summary"><div class="donut"><span>48<small>%</small></span></div><div><p><i class="hunger-bg"></i>饥饿 <b>48%</b></p><p><i class="sleepy-bg"></i>困倦 <b>33%</b></p><p><i class="discomfort-bg"></i>身体不适 <b>19%</b></p></div></div>
+        <section class="chart-card heat-card">
+          <div class="section-heading"><div><p class="eyebrow">24 小时分布</p><h2>什么时候更容易哭？</h2></div><span class="sample-label">18 次记录</span></div>
+          <div class="heatmap" id="heatmap"></div>
+          <div class="heat-labels"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>
+          <p class="chart-note"><b>高发时段 18:00—21:00</b>，占本周记录的 39%。</p>
         </section>
-        <section class="history-section">
-          <div class="section-heading compact"><h2>最近记录</h2><button class="text-button" id="clearHistory" type="button">清除演示记录</button></div>
-          <div id="historyList"></div>
+        <section class="chart-card soothing-card">
+          <div class="section-heading"><div><p class="eyebrow">已反馈记录</p><h2>什么方式更有效？</h2></div><button class="inline-link" type="button">查看全部</button></div>
+          <div class="soothing-list">
+            <div><span class="rank">1</span><p><b>抱哄 + 降低刺激</b><small>使用 7 次 · 明显缓解 5 次</small></p><strong>71%</strong></div>
+            <div><span class="rank">2</span><p><b>喂养</b><small>使用 5 次 · 明显缓解 3 次</small></p><strong>60%</strong></div>
+            <div><span class="rank">3</span><p><b>拍嗝 / 调整姿势</b><small>使用 4 次 · 明显缓解 2 次</small></p><strong>50%</strong></div>
+          </div>
         </section>
+        <button class="report-button" id="reportButton" type="button"><span>□</span><p><b>生成本周照护摘要</b><small>预览后再决定是否分享</small></p><i>→</i></button>
+      </section>
+
+      <section class="view profile-view" id="profileView" aria-labelledby="profileTitle">
+        <div class="page-heading"><div><p class="eyebrow">家庭与设置</p><h1 id="profileTitle">我的泣语</h1><p>管理宝宝、共同照护者和数据偏好。</p></div></div>
+        <section class="profile-hero">
+          <span class="large-avatar">禾</span><div><p class="eyebrow">当前宝宝</p><h2>禾禾</h2><p>4 个月 12 天 · 2026 年 4 月 12 日出生</p><span>已积累 28 次有效反馈</span></div><button id="editProfileButton" type="button">编辑</button>
+        </section>
+        <section class="settings-card">
+          <div class="section-heading"><div><p class="eyebrow">共同照护</p><h2>家庭成员</h2></div><button class="inline-link" id="inviteButton" type="button">＋ 邀请</button></div>
+          <div class="member-row"><span class="member-avatar moss">爸</span><p><b>爸爸</b><small>管理员 · 当前照护中</small></p><i class="online-dot"></i></div>
+          <div class="member-row"><span class="member-avatar lilac-bg">妈</span><p><b>妈妈</b><small>管理员 · 12:58 更新</small></p><i>›</i></div>
+          <div class="member-row"><span class="member-avatar sand-bg">奶</span><p><b>奶奶</b><small>临时照护者 · 昨天在线</small></p><i>›</i></div>
+        </section>
+        <section class="personalization-card">
+          <div class="personalization-top"><span>✦</span><div><p class="eyebrow">个性化进度</p><h2>正在逐渐了解禾禾</h2></div><strong>28<small>次反馈</small></strong></div>
+          <div class="progress"><i></i></div><p>已能根据禾禾的近期记录调整行动顺序。个性化只作为辅助，不承诺固定准确率。</p>
+        </section>
+        <section class="settings-card menu-card">
+          <button type="button" id="notificationSettings"><span>♢</span><p><b>提醒与夜间模式</b><small>观察提醒开启 · 22:00 后低刺激</small></p><i>›</i></button>
+          <button type="button" id="knowledgeButton"><span>?</span><p><b>知识与安全中心</b><small>按月龄查看照护知识与危险信号</small></p><i>›</i></button>
+          <button type="button" id="privacyButton"><span>◇</span><p><b>数据与隐私</b><small>原始音频默认不上传</small></p><i>›</i></button>
+          <button type="button" id="exportButton"><span>⇧</span><p><b>导出与分享</b><small>生成家庭摘要或就诊资料</small></p><i>›</i></button>
+        </section>
+        <p class="version-label">泣语 CrySense · P1 交互版本<br />辅助照护，不构成医疗诊断</p>
       </section>
     </main>
 
     <nav class="bottom-nav" aria-label="主导航">
-      <button class="active" data-nav="home" type="button"><span>⌂</span><small>首页</small></button>
-      <button data-nav="analysis" type="button"><span>◉</span><small>分析</small></button>
-      <button data-nav="insights" type="button"><span>⌁</span><small>趋势</small></button>
+      <button class="active" data-nav="today" type="button"><span>⌂</span><small>今天</small></button>
+      <button data-nav="timeline" type="button"><span>≡</span><small>时间线</small></button>
+      <button class="listen-tab" data-nav="listen" type="button" aria-label="聆听哭声"><span><i></i><i></i><i></i></span><small>聆听</small></button>
+      <button data-nav="insights" type="button"><span>⌁</span><small>洞察</small></button>
+      <button data-nav="profile" type="button"><span>○</span><small>我的</small></button>
     </nav>
+  </div>
+
+  <div class="modal-backdrop hidden" id="logModal" role="dialog" aria-modal="true" aria-labelledby="logModalTitle">
+    <div class="bottom-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><div><p class="eyebrow">快捷记录</p><h2 id="logModalTitle">记录喂养</h2></div><button class="close-button" id="closeLogModal" type="button" aria-label="关闭">×</button></div>
+      <div class="type-selector" id="typeSelector">
+        <button type="button" data-type="feeding">◒<small>喂养</small></button>
+        <button type="button" data-type="sleep">☾<small>睡眠</small></button>
+        <button type="button" data-type="diaper">◇<small>尿布</small></button>
+        <button type="button" data-type="soothing">∿<small>安抚</small></button>
+        <button type="button" data-type="temperature">°<small>体温</small></button>
+        <button type="button" data-type="note">＋<small>备注</small></button>
+      </div>
+      <form id="logForm">
+        <div id="dynamicFields"></div>
+        <label class="field"><span>记录时间</span><input id="eventTime" type="time" required /></label>
+        <label class="field"><span>备注（选填）</span><textarea id="eventNote" rows="2" placeholder="补充当时的情况…"></textarea></label>
+        <button class="primary-button save-button" type="submit">保存记录</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="observeModal" role="dialog" aria-modal="true" aria-labelledby="observeTitle">
+    <div class="bottom-sheet observe-sheet">
+      <div class="sheet-handle"></div><button class="close-button" id="closeObserve" type="button" aria-label="关闭">×</button>
+      <div class="observe-orb"><strong id="observeTimer">10:00</strong><small>观察中</small></div>
+      <p class="eyebrow">已记录：降低刺激 + 抱哄</p><h2 id="observeTitle">陪禾禾安静一会儿</h2><p>如果出现呼吸、肤色或反应异常，请立即停止观察并寻求专业帮助。</p>
+      <div class="observe-actions"><button type="button" data-outcome="relieved">明显缓解</button><button type="button" data-outcome="some">有一点</button><button type="button" data-outcome="none">没有缓解</button></div>
+      <button class="secondary-button" id="finishLaterButton" type="button">稍后再反馈</button>
+    </div>
   </div>
 
   <div class="toast" id="toast" role="status"></div>
