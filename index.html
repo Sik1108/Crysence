@@ -97,6 +97,7 @@
           <button type="button" data-filter="diaper">尿布</button>
           <button type="button" data-filter="cry">哭闹</button>
           <button type="button" data-filter="soothing">安抚</button>
+          <button type="button" data-filter="safety">安全</button>
         </div>
         <div class="timeline-context">
           <div><span class="live-dot"></span><b>爸爸照护中</b><small>已接手 2 小时 18 分</small></div>
@@ -108,8 +109,41 @@
       </section>
 
       <section class="view listen-view" id="listenView" aria-labelledby="listenTitle">
-        <div id="recorderStage">
-          <div class="page-heading compact-heading"><div><p class="eyebrow">AI 哭声分析</p><h1 id="listenTitle">让我们听听<br /><em>禾禾想说什么</em></h1><p>手机距离宝宝约 30–50 cm，尽量避开成人说话声。</p></div><span class="demo-tag">演示模式</span></div>
+        <div id="safetyStage">
+          <div class="page-heading compact-heading"><div><p class="eyebrow">安全分流 · 第一步</p><h1 id="listenTitle">录音前，先看看<br /><em>禾禾的整体状态</em></h1><p>这些问题不会诊断疾病，只用于判断是否适合继续普通哭声分析。</p></div><span class="locale-tag">中国大陆⌄</span></div>
+          <section class="safety-intro-card">
+            <span>!</span><div><h2>如果你觉得“不太对劲”</h2><p>请相信自己的观察。即使以下问题无法确定，也可以选择“不确定”，系统会采用更保守的路径。</p></div>
+          </section>
+          <form class="safety-form" id="safetyForm">
+            <fieldset class="safety-question">
+              <legend><span>01</span><b>宝宝的呼吸与肤色怎么样？</b></legend>
+              <p>留意呼吸困难、明显过快、呻吟，以及嘴唇或皮肤发青、灰白。</p>
+              <div class="safety-options"><label><input type="radio" name="breathing" value="normal" /><span>和平时一样</span></label><label><input type="radio" name="breathing" value="emergency" /><span>出现异常</span></label><label><input type="radio" name="breathing" value="unsure" /><span>不确定</span></label></div>
+            </fieldset>
+            <fieldset class="safety-question">
+              <legend><span>02</span><b>宝宝的反应和身体状态怎么样？</b></legend>
+              <p>留意难以唤醒、明显松软、反应显著减弱或抽搐。</p>
+              <div class="safety-options"><label><input type="radio" name="response" value="normal" /><span>和平时一样</span></label><label><input type="radio" name="response" value="emergency" /><span>出现异常</span></label><label><input type="radio" name="response" value="unsure" /><span>不确定</span></label></div>
+            </fieldset>
+            <fieldset class="safety-question">
+              <legend><span>03</span><b>体温、进食和排尿有没有异常？</b></legend>
+              <p>包括异常体温、明显拒绝进食、尿量显著减少或反复严重呕吐。</p>
+              <div class="safety-options"><label><input type="radio" name="body" value="normal" /><span>没有发现</span></label><label><input type="radio" name="body" value="concerning" /><span>可能有</span></label><label><input type="radio" name="body" value="unsure" /><span>不确定</span></label></div>
+            </fieldset>
+            <fieldset class="safety-question">
+              <legend><span>04</span><b>这次哭声和平时相比呢？</b></legend>
+              <p>留意突然持续、异常尖锐或微弱、明显不同于平时，以及持续无法安抚。</p>
+              <div class="safety-options"><label><input type="radio" name="cryChange" value="normal" /><span>和平时相似</span></label><label><input type="radio" name="cryChange" value="concerning" /><span>明显不同</span></label><label><input type="radio" name="cryChange" value="unsure" /><span>不确定</span></label></div>
+            </fieldset>
+            <button class="primary-button safety-continue" id="safetyContinueButton" type="submit" disabled>完成以上问题后继续</button>
+            <button class="concern-link" id="caregiverConcernButton" type="button">我就是觉得宝宝不太对劲</button>
+          </form>
+          <p class="safety-scope">本流程仅作风险分流，不代表“未发现疾病”。如情况紧急，请直接联系当地急救服务。</p>
+        </div>
+
+        <div class="hidden" id="recorderStage">
+          <div class="page-heading compact-heading"><div><p class="eyebrow">需求分析 · 第二步</p><h1>现在听听<br /><em>禾禾想说什么</em></h1><p>手机距离宝宝约 30–50 cm，尽量避开成人说话声。</p></div><span class="demo-tag">演示模式</span></div>
+          <div class="safety-passed"><span>✓</span><p><b>安全问询已完成</b><small>未报告明显危险体征；这不代表排除疾病</small></p><button id="editSafetyButton" type="button">修改</button></div>
           <section class="context-snapshot">
             <p class="eyebrow">本次自动带入</p>
             <div><span>◒ 2 小时前喂养</span><span>☾ 清醒 1h 26m</span><span>◇ 48 分前换尿布</span></div>
@@ -121,13 +155,34 @@
             <div class="timer"><strong id="timerValue">10</strong><span>秒</span></div>
             <p id="recordStatus">准备好后轻触按钮</p>
             <button class="record-button" id="recordButton" type="button" aria-label="开始录音"><span></span></button>
-            <button class="demo-link" id="demoButton" type="button">没有麦克风？体验演示分析</button>
+            <div class="demo-actions"><button class="demo-link" id="demoButton" type="button">体验普通需求分析</button><button class="demo-link anomaly" id="anomalyDemoButton" type="button">体验异常哭声分流</button></div>
           </div>
-          <aside class="safety-inline"><span>!</span><p><strong>先观察宝宝的整体状态</strong>如出现呼吸困难、发绀、抽搐或反应异常，请立即寻求专业医疗帮助。</p></aside>
+          <aside class="safety-inline"><span>!</span><p><strong>状态随时可能变化</strong>如果录音过程中出现呼吸、肤色或反应异常，请停止分析并立即寻求专业医疗帮助。</p></aside>
+        </div>
+
+        <div class="hidden" id="safetyResultStage">
+          <div class="result-heading"><button class="back-link" id="restartSafetyButton" type="button">← 重新检查</button><span class="safety-result-tag" id="safetyResultTag">安全分流</span></div>
+          <section class="safety-result-hero" id="safetyResultHero">
+            <div class="safety-result-icon" id="safetyResultIcon">!</div>
+            <p class="eyebrow" id="safetyLevel">需要尽快专业评估</p>
+            <h1 id="safetyTitle">这次不继续普通需求分析</h1>
+            <p id="safetySummary">系统发现了需要优先关注的信息。</p>
+          </section>
+          <section class="result-card safety-reasons-card">
+            <p class="eyebrow">分流依据</p><h2>为什么暂停分析</h2>
+            <ul id="safetyReasonList"></ul>
+          </section>
+          <section class="result-card safety-guidance-card" id="safetyGuidanceCard">
+            <p class="eyebrow">现在建议</p><h2 id="safetyGuidanceTitle">请尽快联系专业医疗人员</h2><p id="safetyGuidanceBody">向专业人员说明哭声变化和伴随状态；如果情况加重，请直接联系当地急救服务。</p>
+            <button class="primary-button" id="safetyPrimaryButton" type="button">记录本次情况并返回今天</button>
+            <button class="secondary-button" id="safetySummaryButton" type="button">预览就诊摘要</button>
+          </section>
+          <p class="safety-scope">安全分流不能诊断疾病，也不能替代专业评估。</p>
         </div>
 
         <div class="hidden" id="resultStage">
           <div class="result-heading"><button class="back-link" id="newAnalysisButton" type="button">← 重新分析</button><span class="demo-tag">模拟分析</span></div>
+          <div class="safety-cleared-banner"><span>✓</span><p><b>安全层允许继续需求分析</b><small>未报告明显危险体征 · 声音在演示模型范围内</small></p></div>
           <section class="result-hero">
             <div class="match-ring" id="matchRing"><span><strong id="topProbability">72%</strong><small>综合匹配度</small></span></div>
             <p class="eyebrow" id="confidenceLabel">中等置信度 · 建议排查</p>

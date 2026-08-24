@@ -7,6 +7,7 @@ const EVENT_META = {
   diaper: { icon: "◇", label: "尿布", className: "diaper" },
   cry: { icon: "∿", label: "哭闹分析", className: "cry" },
   soothing: { icon: "∿", label: "安抚", className: "soothing" },
+  safety: { icon: "!", label: "安全分流", className: "safety" },
   temperature: { icon: "°", label: "体温", className: "temperature" },
   note: { icon: "+", label: "家庭备注", className: "note" }
 };
@@ -42,6 +43,9 @@ const state = {
   levels: [],
   analysisId: 0,
   activeResult: null,
+  safetyAnswers: {},
+  safetyResult: null,
+  safetyEventSaved: false,
   observationId: null,
   observationSeconds: 600
 };
@@ -198,6 +202,125 @@ function submitLog(event) {
   showToast(`${EVENT_META[state.logType].label}记录已保存`);
 }
 
+function resetSafetyFlow() {
+  clearInterval(state.timerId);
+  cancelAnimationFrame(state.animationId);
+  state.stream?.getTracks().forEach(track => track.stop());
+  state.recording = false;
+  state.safetyAnswers = {};
+  state.safetyResult = null;
+  state.safetyEventSaved = false;
+  $("#safetyForm").reset();
+  $("#safetyContinueButton").disabled = true;
+  $("#safetyContinueButton").textContent = "完成以上问题后继续";
+  $("#safetyStage").classList.remove("hidden");
+  $("#recorderStage").classList.add("hidden");
+  $("#safetyResultStage").classList.add("hidden");
+  $("#resultStage").classList.add("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function updateSafetyProgress() {
+  const formData = new FormData($("#safetyForm"));
+  const names = ["breathing", "response", "body", "cryChange"];
+  const completed = names.filter(name => formData.get(name)).length;
+  const button = $("#safetyContinueButton");
+  button.disabled = completed !== names.length;
+  button.textContent = completed === names.length ? "查看安全分流结果" : `还需回答 ${names.length - completed} 项`;
+}
+
+function submitSafety(event) {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  state.safetyAnswers = Object.fromEntries(data.entries());
+  const emergencyReasons = [];
+  const concerningReasons = [];
+  if (state.safetyAnswers.breathing === "emergency") emergencyReasons.push("照护者报告宝宝的呼吸或肤色出现异常");
+  if (state.safetyAnswers.response === "emergency") emergencyReasons.push("照护者报告宝宝的反应或身体状态出现异常");
+  if (state.safetyAnswers.breathing === "unsure") concerningReasons.push("目前无法确认宝宝的呼吸与肤色是否正常");
+  if (state.safetyAnswers.response === "unsure") concerningReasons.push("目前无法确认宝宝的反应与身体状态是否正常");
+  if (state.safetyAnswers.body === "concerning") concerningReasons.push("体温、进食、排尿或呕吐情况可能存在异常");
+  if (state.safetyAnswers.body === "unsure") concerningReasons.push("目前无法确认体温、进食和排尿情况");
+  if (state.safetyAnswers.cryChange === "concerning") concerningReasons.push("这次哭声明显不同于宝宝平时");
+  if (state.safetyAnswers.cryChange === "unsure") concerningReasons.push("目前无法确认这次哭声是否不同于平时");
+  if (emergencyReasons.length) return showSafetyResult("emergency", emergencyReasons);
+  if (concerningReasons.length) return showSafetyResult("concerning", concerningReasons);
+  showRecorderStage();
+}
+
+function showRecorderStage() {
+  $("#safetyStage").classList.add("hidden");
+  $("#safetyResultStage").classList.add("hidden");
+  resetRecorder();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function showSafetyResult(kind, reasons) {
+  const configs = {
+    emergency: {
+      level: "紧急求助",
+      title: "请立即寻求紧急医疗帮助",
+      summary: "你报告了可能需要立即处理的危险体征。本次不会继续录音或需求分析。",
+      guidanceTitle: "不要等待哭声分析结果",
+      guidanceBody: "请立即联系当地急救服务或前往急诊。如在中国大陆，可拨打 120。请始终遵循现场专业人员的指示。",
+      primary: "查看紧急求助方式",
+      icon: "!"
+    },
+    concerning: {
+      level: "需要尽快专业评估",
+      title: "这次先不继续普通需求分析",
+      summary: "当前信息不能安全归入饥饿、困倦等常见需求，建议优先联系专业医疗人员。",
+      guidanceTitle: "请尽快联系儿科或医疗咨询渠道",
+      guidanceBody: "说明哭声变化和伴随状态；如果呼吸、肤色或反应出现异常，请升级为紧急求助。",
+      primary: "记录本次情况并返回今天",
+      icon: "!"
+    },
+    anomaly: {
+      level: "异常哭声 · 超出模型能力",
+      title: "这次不显示需求概率",
+      summary: "这段声音与禾禾的个人基线差异较大，演示模型无法将它安全归入常见需求。",
+      guidanceTitle: "请结合整体状态进行专业评估",
+      guidanceBody: "这不是疾病诊断。若哭声明显不同于平时、持续无法安抚或伴随其他异常，请尽快联系专业医疗人员。",
+      primary: "记录本次情况并返回今天",
+      icon: "≈"
+    }
+  };
+  const config = configs[kind];
+  state.safetyResult = { kind, reasons, at: new Date().toISOString() };
+  $("#safetyStage").classList.add("hidden");
+  $("#recorderStage").classList.add("hidden");
+  $("#resultStage").classList.add("hidden");
+  $("#safetyResultStage").classList.remove("hidden");
+  $("#safetyResultHero").className = `safety-result-hero ${kind}`;
+  $("#safetyGuidanceCard").className = `result-card safety-guidance-card ${kind}`;
+  $("#safetyLevel").textContent = config.level;
+  $("#safetyTitle").textContent = config.title;
+  $("#safetySummary").textContent = config.summary;
+  $("#safetyResultIcon").textContent = config.icon;
+  $("#safetyGuidanceTitle").textContent = config.guidanceTitle;
+  $("#safetyGuidanceBody").textContent = config.guidanceBody;
+  $("#safetyPrimaryButton").textContent = config.primary;
+  $("#safetyReasonList").innerHTML = reasons.map(reason => `<li><span>!</span><p>${reason}</p></li>`).join("");
+  saveSafetyEvent();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function saveSafetyEvent() {
+  if (!state.safetyResult || state.safetyEventSaved) return;
+  const labels = { emergency: "紧急安全分流", concerning: "建议尽快专业评估", anomaly: "异常哭声 · 超出模型能力" };
+  state.events.unshift({
+    id: Date.now(),
+    type: "safety",
+    at: state.safetyResult.at,
+    title: labels[state.safetyResult.kind],
+    detail: state.safetyResult.reasons.join("；"),
+    tags: ["安全分流", state.safetyResult.kind === "emergency" ? "紧急" : "未继续需求分析"],
+    author: "爸爸"
+  });
+  state.safetyEventSaved = true;
+  saveEvents();
+}
+
 function resetRecorder() {
   clearInterval(state.timerId);
   cancelAnimationFrame(state.animationId);
@@ -209,9 +332,10 @@ function resetRecorder() {
   $("#recordStatus").textContent = "准备好后轻触按钮";
   $("#recordButton").disabled = false;
   $("#recordButton").classList.remove("recording");
-  $("#demoButton").classList.remove("hidden");
+  $(".demo-actions").classList.remove("hidden");
   updateQuality("", "等待开始");
   $("#recorderStage").classList.remove("hidden");
+  $("#safetyResultStage").classList.add("hidden");
   $("#resultStage").classList.add("hidden");
   drawIdleWave();
 }
@@ -256,7 +380,7 @@ async function toggleRecording() {
     state.levels = [];
     state.remaining = 10;
     $("#recordButton").classList.add("recording");
-    $("#demoButton").classList.add("hidden");
+    $(".demo-actions").classList.add("hidden");
     $("#recordStatus").textContent = "正在筛选有效哭声…";
     updateQuality("good", "正在检测声音");
     visualizeWave();
@@ -304,10 +428,10 @@ function finishRecording() {
   state.stream?.getTracks().forEach(track => track.stop());
   state.audioContext?.close();
   $("#recordButton").classList.remove("recording");
-  runInference(false);
+  runInference("normal", false);
 }
 
-function runInference(demo = true) {
+function runInference(mode = "normal", demo = true) {
   clearInterval(state.timerId);
   if (state.recording) {
     state.recording = false;
@@ -316,11 +440,15 @@ function runInference(demo = true) {
   $("#recordButton").disabled = true;
   $("#recordStatus").textContent = "正在分析声音、状态与个人记录…";
   updateQuality("good", "声音已采集");
-  const messages = ["正在筛选有效哭声…", "正在对照近期状态…", "正在生成行动参考…"];
+  const messages = ["正在筛选有效哭声…", "正在检查声音适用范围…", "正在对照个人声音基线…"];
   let index = 0;
   const progress = setInterval(() => { $("#recordStatus").textContent = messages[Math.min(index++, messages.length - 1)]; }, 550);
   setTimeout(() => {
     clearInterval(progress);
+    if (mode === "anomaly") {
+      $("#recordButton").disabled = false;
+      return showSafetyResult("anomaly", ["声音音高与音质明显偏离禾禾过去的可靠录音", "演示模型将这段声音识别为分布外输入，无法安全生成需求概率"]);
+    }
     state.analysisId += 1;
     const mean = state.levels.length ? state.levels.reduce((a, b) => a + b, 0) / state.levels.length : 6;
     const scenarios = mean < 2.4 ? [[44, 34, 22], [51, 30, 19]] : [[16, 78, 6], [76, 16, 8], [22, 58, 20]];
@@ -365,7 +493,7 @@ function showResult(probabilities, demo) {
   $("#resultStage").classList.remove("hidden");
   $("#recordButton").disabled = false;
   if (!state.activeResult.saved) {
-    state.events.unshift({ id: Date.now(), type: "cry", at: new Date().toISOString(), title: `哭闹 · 更可能${labels[top]}`, detail: `模拟分析匹配度 ${max}%，${confidence === "high" ? "较高" : confidence === "medium" ? "中等" : "低"}置信度`, tags: ["模拟分析", "待反馈"], author: "爸爸" });
+    state.events.unshift({ id: Date.now(), type: "cry", at: new Date().toISOString(), title: `哭闹 · 更可能${labels[top]}`, detail: `模拟分析匹配度 ${max}%，${confidence === "high" ? "较高" : confidence === "medium" ? "中等" : "低"}置信度`, tags: ["安全问询已完成", "模拟分析", "待反馈"], author: "爸爸" });
     state.activeResult.saved = true;
     saveEvents();
   }
@@ -421,21 +549,39 @@ function initializeDate() {
   $("#todayTitle").innerHTML = `${hour < 11 ? "早上" : hour < 18 ? "下午" : "晚上"}好，<em>慢慢来。</em>`;
 }
 
-$$('[data-nav]').forEach(button => button.addEventListener("click", () => navigate(button.dataset.nav)));
-$("#listenHero").addEventListener("click", () => { navigate("listen"); resetRecorder(); });
+$$('[data-nav]').forEach(button => button.addEventListener("click", () => {
+  navigate(button.dataset.nav);
+  if (button.dataset.nav === "listen") resetSafetyFlow();
+}));
+$("#listenHero").addEventListener("click", () => { navigate("listen"); resetSafetyFlow(); });
 $$('[data-log]').forEach(button => button.addEventListener("click", () => openLog(button.dataset.log)));
 $$('#typeSelector [data-type]').forEach(button => button.addEventListener("click", () => { state.logType = button.dataset.type; renderLogFields(); }));
 $("#closeLogModal").addEventListener("click", closeLog);
 $("#logModal").addEventListener("click", event => { if (event.target === event.currentTarget) closeLog(); });
 $("#logForm").addEventListener("submit", submitLog);
+$("#safetyForm").addEventListener("change", updateSafetyProgress);
+$("#safetyForm").addEventListener("submit", submitSafety);
+$("#caregiverConcernButton").addEventListener("click", () => showSafetyResult("concerning", ["照护者主动表示宝宝这次的状态让人担心"]));
+$("#editSafetyButton").addEventListener("click", resetSafetyFlow);
+$("#restartSafetyButton").addEventListener("click", resetSafetyFlow);
 $$('#timelineFilters [data-filter]').forEach(button => button.addEventListener("click", () => {
   state.filter = button.dataset.filter;
   $$('#timelineFilters [data-filter]').forEach(item => item.classList.toggle("active", item === button));
   renderTimeline();
 }));
 $("#recordButton").addEventListener("click", toggleRecording);
-$("#demoButton").addEventListener("click", () => runInference(true));
+$("#demoButton").addEventListener("click", () => runInference("normal", true));
+$("#anomalyDemoButton").addEventListener("click", () => runInference("anomaly", true));
 $("#newAnalysisButton").addEventListener("click", resetRecorder);
+$("#safetyPrimaryButton").addEventListener("click", () => {
+  if (state.safetyResult?.kind === "emergency") {
+    showToast("如在中国大陆，请立即拨打 120 或前往急诊");
+    return;
+  }
+  navigate("today");
+  showToast("安全分流记录已保存在家庭时间线");
+});
+$("#safetySummaryButton").addEventListener("click", () => showToast("摘要将包含安全问询、哭声变化和时间信息；不会自动分享"));
 $("#startObserveButton").addEventListener("click", startObservation);
 $("#closeObserve").addEventListener("click", closeObservation);
 $("#finishLaterButton").addEventListener("click", () => { closeObservation(); showToast("观察仍在进行，可稍后从时间线补充反馈"); });
