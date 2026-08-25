@@ -1,36 +1,62 @@
-# 泣语 CrySense P1 交互版本
+# CrySense iOS Web MVP
 
-一个面向 0–12 月龄婴儿家庭的哭声理解与日常照护 Web 原型。当前版本依据 V1.1 PRD，将产品从单一哭声分析扩展为当下决策、日常记录与长期洞察三个层级。
+CrySense 是面向 0 至 12 月龄婴儿家庭的哭声理解与照护辅助原型。本次迭代以 `4d162b7` 为功能基线，将原有 Web MVP 重构为接近真实 iOS App 的启动、登录、检测、结果、设备和反馈流程。
 
-## 运行
+产品主链路是：
 
-直接双击 `index.html` 可以浏览界面和演示分析。由于浏览器的安全限制，真实麦克风录音通常需要通过 `localhost` 打开：
+`Listen → Understand → Recommend → Ask Permission → Act → Learn`
+
+CrySense 不是通用智能家居控制器。设备动作只能由本次哭声分析生成，并且必须先展示 AutomationPlan，再由用户明确授权执行。病理风险、异常哭声、危险体征和低置信度结果会阻断全部设备控制。
+
+## 本地运行
+
+该项目无需安装运行时依赖。建议通过 localhost 打开，以便浏览器模拟麦克风权限：
 
 ```powershell
 python -m http.server 4173
 ```
 
-然后访问 `http://localhost:4173`。
+访问 `http://localhost:4173/?fresh=1` 可从 Launch Screen 重新体验完整流程。登录和权限均为本地模拟，不会发送真实 OAuth 请求或设备命令。
 
-## 当前已实现
+## 已实现
 
-- “今天、时间线、聆听、洞察、我的”五入口信息架构
-- 当前状态、上下文提示、今日摘要和照护交接信息
-- 喂养、睡眠、尿布、安抚、体温和备注快捷记录
-- 本地家庭时间线与分类筛选
-- 麦克风授权、10 秒录音、实时波形和基础音量检测
-- 录音前危险体征安全问询；异常和“不确定”回答会阻断普通需求分析
-- 紧急求助、尽快专业评估、异常哭声 / 模型范围外三类安全结果
-- 与个人声音基线差异较大的演示分流，不输出疾病名称或伪需求概率
-- 安全事件本地记录及时间线筛选
-- 明确标记的模拟多维分析、置信度分流和判断依据
-- 高置信度行动建议、中低置信度检查清单和观察反馈
-- 哭闹 / 睡眠趋势、时段热力图和安抚效果
-- 家庭成员、个性化进度与隐私状态页面
-- 所有记录通过浏览器 `localStorage` 保存在当前设备
+- Launch Screen、三页 Onboarding、Apple 登录主入口和邮箱次入口
+- 登录后的四栏 Tab Bar：`首页 / 记录 / 设备 / 我的`
+- 五秒哭声采集倒计时，结束后自动进入分析
+- 录音前危险体征问询，以及病理风险、异常哭声和低置信度安全分流
+- 高置信度且安全时生成可审阅的推荐环境方案
+- 每项动作展示设备、参数、持续时间和状态，并支持取消单项动作
+- 最终 iOS Bottom Sheet 确认；未授权时不调用任何设备命令
+- 智能婴儿床、智能灯、温控和温湿度传感器 Mock
+- Online、Offline、Unauthorized、Connected 设备状态
+- 执行中、已完成、部分失败和执行失败状态，以及单设备失败隔离
+- 哭声分析、授权、执行、反馈和干预效果的本地数据闭环
+- 麦克风、家庭设备和通知权限按需申请
+- 集中的 iOS 设计 token、Safe Area、44pt 触控目标和系统字体栈
 
-## 重要说明
+## 核心模块
 
-当前版本的需求分析、异常哭声和模型范围外结果均由演示逻辑生成，不具备真实筛查或识别能力，也不构成医疗建议。安全问询只能进行产品流程演示，不能排除疾病。家庭邀请、云同步、知识中心和报告分享目前只展示产品状态，不会真实发送或上传数据。正式产品必须接入经过可靠数据训练、校准和真实临床场景验证的模型，并完成隐私、安全与专业审核。
+- `src/constants.js`：采集时长、安全类型、哭因和置信度阈值
+- `src/recording.js`：可测试的五秒倒计时与自动完成逻辑
+- `src/smart-home.js`：`Device / Capability / SuggestedAction / AutomationPlan / UserConsent / ExecutionResult`
+- `src/analysis-store.js`：结构化分析、执行和反馈记录
+- `app.js`：应用状态、页面流程、权限 Sheet、分析与设备交互
+- `styles.css`：iOS typography、spacing、radius、color、safe-area 等设计 token
+- `docs/ios-ui-guidelines.md`：本次移动端设计和交互验收基线
 
-产品要求、验收标准、数据和 AI 方案详见 `PRD.md`。
+`MockSmartHomeAdapter` 实现了当前演示。`SmartHomeAdapter` 保留了 Matter、Apple Home / HomeKit、Home Assistant、小米 IoT 和厂商 SDK 的适配边界；本版本未连接任何真实平台。
+
+## 测试
+
+```powershell
+npm test
+npm run check
+```
+
+自动化测试覆盖五秒倒计时、自动分析回调、安全门控、未授权零命令、困倦和饥饿策略、上下文相关不适策略、设备状态变化、部分失败与数据闭环。另需按 `docs/ios-ui-guidelines.md` 在常见 iPhone 尺寸完成视觉验收。
+
+## 数据与医疗边界
+
+每次识别保存 `CryAnalysis ID / Timestamp / CryReason / Probability Distribution / Confidence / SafetyResult / RecommendedActions / UserConsent / ExecutedActions / ExecutionResult / UserFeedback / InterventionEffective`。
+
+当前分析、异常检测、登录、权限和智能家居均为产品流程 Mock，不具备真实筛查或诊断能力。智能家居行为可用于未来的 Personalized Comfort Policy，但不得直接作为医学诊断依据。任何正式产品都需要经过隐私、安全、临床和目标市场合规审核。

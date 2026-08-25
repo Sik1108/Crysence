@@ -1,0 +1,10 @@
+{
+  "name": "crysense-ios-web-mvp",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check app.js && node --check src/constants.js && node --check src/recording.js && node --check src/smart-home.js && node --check src/analysis-store.js"
+  }
+}

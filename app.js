@@ -1,72 +1,189 @@
+import {
+  CRY_REASONS,
+  RECORDING_DURATION_SECONDS,
+  SAFETY_STATUS,
+  classifyConfidence
+} from "./src/constants.js";
+import { RecordingCountdown } from "./src/recording.js";
+import {
+  DEVICE_STATUS,
+  FUTURE_SMART_HOME_ADAPTERS,
+  MockSmartHomeAdapter,
+  PLAN_STATUS,
+  UserConsent,
+  buildAutomationPlan,
+  createSafeResult
+} from "./src/smart-home.js";
+import { AnalysisStore } from "./src/analysis-store.js";
+
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
 const EVENT_META = {
-  feeding: { icon: "◒", label: "喂养", className: "" },
-  sleep: { icon: "☾", label: "睡眠", className: "sleep" },
-  diaper: { icon: "◇", label: "尿布", className: "diaper" },
-  cry: { icon: "∿", label: "哭闹分析", className: "cry" },
-  soothing: { icon: "∿", label: "安抚", className: "soothing" },
+  feeding: { icon: "喂", label: "喂养", className: "feeding" },
+  sleep: { icon: "睡", label: "睡眠", className: "sleep" },
+  diaper: { icon: "尿", label: "尿布", className: "diaper" },
+  cry: { icon: "听", label: "哭声分析", className: "cry" },
+  soothing: { icon: "安", label: "安抚反馈", className: "soothing" },
+  automation: { icon: "家", label: "环境方案", className: "automation" },
   safety: { icon: "!", label: "安全分流", className: "safety" },
-  temperature: { icon: "°", label: "体温", className: "temperature" },
-  note: { icon: "+", label: "家庭备注", className: "note" }
+  temperature: { icon: "温", label: "体温", className: "temperature" },
+  note: { icon: "记", label: "家庭备注", className: "note" }
 };
+
+const FLOW_KEY = "crysense-app-flow-v3";
+const PERMISSION_KEY = "crysense-permissions-v3";
+
+function parseStored(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || "null") || fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function minutesAgo(minutes) {
   return new Date(Date.now() - minutes * 60000).toISOString();
 }
 
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 const seedEvents = [
   { id: 1, type: "diaper", at: minutesAgo(48), title: "更换尿布", detail: "湿尿布，皮肤状态正常", tags: ["湿", "已清洁"], author: "爸爸" },
   { id: 2, type: "feeding", at: minutesAgo(120), title: "奶瓶喂养", detail: "配方奶 120 ml，喂养后已拍嗝", tags: ["120 ml", "已拍嗝"], author: "爸爸" },
-  { id: 3, type: "sleep", at: minutesAgo(206), title: "午睡结束", detail: "睡眠 1 小时 12 分，醒来状态平稳", tags: ["1h 12m", "自然醒"], author: "妈妈" },
+  { id: 3, type: "sleep", at: minutesAgo(206), title: "午睡结束", detail: "睡眠 1 小时 12 分，醒来状态平稳", tags: ["1 小时 12 分", "自然醒"], author: "妈妈" },
   { id: 4, type: "soothing", at: minutesAgo(292), title: "抱哄后明显缓解", detail: "降低光线并抱哄，约 6 分钟后平静", tags: ["抱哄", "明显缓解"], author: "妈妈" },
-  { id: 5, type: "cry", at: minutesAgo(300), title: "哭闹 · 更可能困倦", detail: "哭闹约 5 分钟，模拟分析匹配度 72%", tags: ["中等置信度", "已反馈"], author: "妈妈" },
+  { id: 5, type: "cry", at: minutesAgo(300), title: "哭声分析：更可能困倦", detail: "采集 5 秒，模拟分析匹配度 78%", tags: ["较高置信度", "已反馈"], author: "妈妈" },
   { id: 6, type: "feeding", at: minutesAgo(425), title: "母乳喂养", detail: "左侧 12 分钟，右侧 9 分钟", tags: ["21 分钟"], author: "妈妈" },
-  { id: 7, type: "diaper", at: minutesAgo(454), title: "更换尿布", detail: "湿 + 便，已完成清洁", tags: ["湿 + 便"], author: "妈妈" },
-  { id: 8, type: "sleep", at: minutesAgo(502), title: "夜间睡眠结束", detail: "本段睡眠 3 小时 2 分", tags: ["3h 02m"], author: "爸爸" }
+  { id: 7, type: "sleep", at: minutesAgo(502), title: "夜间睡眠结束", detail: "本段睡眠 3 小时 2 分", tags: ["3 小时 2 分"], author: "爸爸" }
 ];
 
+const smartHomeAdapter = new MockSmartHomeAdapter();
+const analysisStore = new AnalysisStore(localStorage);
+const flow = parseStored(FLOW_KEY, { onboardingComplete: false, loggedIn: false });
+const permissions = parseStored(PERMISSION_KEY, {
+  microphone: "prompt",
+  home: "prompt",
+  notifications: "prompt"
+});
+
+if (new URLSearchParams(location.search).get("fresh") === "1") {
+  flow.onboardingComplete = false;
+  flow.loggedIn = false;
+  localStorage.setItem(FLOW_KEY, JSON.stringify(flow));
+}
+
 const state = {
-  view: "today",
+  view: "home",
   filter: "all",
-  logType: "feeding",
-  events: JSON.parse(localStorage.getItem("crysense-v2-events") || "null") || seedEvents,
+  logType: "note",
+  events: parseStored("crysense-v3-events", seedEvents),
   stream: null,
   audioContext: null,
   analyser: null,
   recorder: null,
   recording: false,
-  remaining: 10,
-  timerId: null,
+  remaining: RECORDING_DURATION_SECONDS,
   animationId: null,
   levels: [],
-  analysisId: 0,
+  analysisSequence: 0,
   activeResult: null,
   safetyAnswers: {},
   safetyResult: null,
   safetyEventSaved: false,
+  safetyAnalysisSaved: false,
   observationId: null,
-  observationSeconds: 600
+  observationSeconds: 600,
+  onboardingPage: 0,
+  permissionRequest: null,
+  retryActionIds: []
 };
 
+state.countdown = new RecordingCountdown({
+  onTick: remaining => {
+    state.remaining = remaining;
+    $("#timerValue").textContent = String(remaining);
+  },
+  onComplete: () => finishRecording()
+});
+
 const views = {
-  today: $("#todayView"),
-  timeline: $("#timelineView"),
-  listen: $("#listenView"),
-  insights: $("#insightsView"),
-  profile: $("#profileView")
+  home: $("#homeView"),
+  records: $("#recordsView"),
+  devices: $("#devicesView"),
+  profile: $("#profileView"),
+  listen: $("#listenView")
 };
+
+function persistFlow() {
+  localStorage.setItem(FLOW_KEY, JSON.stringify(flow));
+}
+
+function persistPermissions() {
+  localStorage.setItem(PERMISSION_KEY, JSON.stringify(permissions));
+}
+
+function showOnlyGate(target) {
+  [$("#onboardingScreen"), $("#loginScreen"), $("#appShell")].forEach(screen => screen.classList.add("hidden"));
+  target.classList.remove("hidden");
+}
+
+function showPostLaunchDestination() {
+  $("#launchScreen").classList.add("hidden");
+  if (!flow.onboardingComplete) {
+    state.onboardingPage = 0;
+    renderOnboarding();
+    return showOnlyGate($("#onboardingScreen"));
+  }
+  if (!flow.loggedIn) return showOnlyGate($("#loginScreen"));
+  enterApp();
+}
+
+function renderOnboarding() {
+  $$('[data-onboarding-page]').forEach((page, index) => page.classList.toggle("active", index === state.onboardingPage));
+  $$(".page-dots i").forEach((dot, index) => dot.classList.toggle("active", index === state.onboardingPage));
+  $("#onboardingNextButton").textContent = state.onboardingPage === 2 ? "开始使用" : "继续";
+}
+
+function finishOnboarding() {
+  flow.onboardingComplete = true;
+  persistFlow();
+  if (flow.loggedIn) enterApp();
+  else showOnlyGate($("#loginScreen"));
+}
+
+function mockLogin() {
+  flow.loggedIn = true;
+  persistFlow();
+  enterApp();
+}
+
+function enterApp() {
+  showOnlyGate($("#appShell"));
+  navigate("home");
+  renderEverything();
+}
 
 function navigate(name) {
   if (!views[name]) return;
   state.view = name;
   Object.entries(views).forEach(([key, view]) => view.classList.toggle("active", key === name));
   $$(".bottom-nav [data-nav]").forEach(button => button.classList.toggle("active", button.dataset.nav === name));
+  $("#appShell").classList.toggle("flow-active", name === "listen");
   window.scrollTo({ top: 0, behavior: "smooth" });
-  if (name === "timeline") renderTimeline();
-  if (name === "insights") renderInsights();
-  if (name === "today") renderToday();
+  if (name === "records") {
+    renderTimeline();
+    renderAnalysisHistory();
+  }
+  if (name === "devices") renderDevices();
+  if (name === "home") renderHome();
 }
 
 function showToast(message) {
@@ -77,9 +194,20 @@ function showToast(message) {
   showToast.id = setTimeout(() => toast.classList.remove("show"), 2800);
 }
 
+function openModal(modal) {
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  setTimeout(() => $("button:not([disabled])", modal)?.focus(), 0);
+}
+
+function closeModal(modal) {
+  modal.classList.add("hidden");
+  document.body.style.overflow = "";
+}
+
 function saveEvents() {
-  localStorage.setItem("crysense-v2-events", JSON.stringify(state.events));
-  renderToday();
+  localStorage.setItem("crysense-v3-events", JSON.stringify(state.events));
+  renderHome();
   renderTimeline();
 }
 
@@ -96,7 +224,7 @@ function relativeTime(iso) {
   if (minutes < 1) return "刚刚";
   if (minutes < 60) return `${minutes} 分钟前`;
   const hours = Math.floor(minutes / 60);
-  return `${hours} 小时${minutes % 60 ? ` ${minutes % 60} 分` : ""}前`;
+  return `${hours} 小时前`;
 }
 
 function iconMarkup(type) {
@@ -104,24 +232,25 @@ function iconMarkup(type) {
   return `<span class="event-icon ${meta.className}">${meta.icon}</span>`;
 }
 
-function renderToday() {
+function renderHome() {
   const todayEvents = state.events.filter(event => sameDay(event.at)).sort((a, b) => new Date(b.at) - new Date(a.at));
-  const byType = type => todayEvents.filter(event => event.type === type);
-  $("#feedCount").textContent = Math.max(5, byType("feeding").length);
-  $("#diaperCount").textContent = Math.max(4, byType("diaper").length);
-  $("#cryCount").textContent = Math.max(3, byType("cry").length);
-  const latestFeed = byType("feeding")[0];
-  const latestDiaper = byType("diaper")[0];
-  if (latestFeed) $("#lastFeedText").textContent = relativeTime(latestFeed.at);
-  if (latestDiaper) $("#lastDiaperText").textContent = relativeTime(latestDiaper.at);
-  if (latestFeed) $("[data-log='feeding'] small").textContent = `上次 ${formatTime(latestFeed.at)}`;
-  if (latestDiaper) $("[data-log='diaper'] small").textContent = `上次 ${formatTime(latestDiaper.at)}`;
-  $("#todayTimeline").innerHTML = todayEvents.slice(0, 3).map(event => `
-    <article class="mini-event">
-      ${iconMarkup(event.type)}
-      <div><b>${event.title}</b><small>${event.detail}</small></div>
-      <time>${formatTime(event.at)}</time>
-    </article>`).join("");
+  const cryEvents = todayEvents.filter(event => event.type === "cry");
+  $("#cryCount").textContent = String(Math.max(3, cryEvents.length));
+  const analyses = analysisStore.list();
+  if (analyses.length) {
+    const labels = { hunger: "饥饿", sleepy: "困倦", discomfort: "一般性不适", unclassified: "未分类" };
+    $("#latestReason").textContent = labels[analyses[0].cryReason] || "未分类";
+    $("#latestAnalysisTime").textContent = relativeTime(analyses[0].timestamp);
+  }
+  renderHomeSmartCard();
+}
+
+function renderHomeSmartCard() {
+  const devices = smartHomeAdapter.listDevices();
+  const available = devices.filter(device => [DEVICE_STATUS.ONLINE, DEVICE_STATUS.CONNECTED].includes(device.status));
+  const sensor = devices.find(device => device.category === "sensor");
+  $("#homeConnectedCount").textContent = `${available.length} 台设备可用`;
+  if (sensor) $("#homeEnvironment").textContent = `${sensor.state.temperature.toFixed(1)}°C`;
 }
 
 function renderTimeline() {
@@ -134,43 +263,59 @@ function renderTimeline() {
     <article class="full-event">
       ${iconMarkup(event.type)}
       <div class="event-main">
-        <div><b>${event.title}</b><time>${formatTime(event.at)}</time></div>
-        <p>${event.detail}</p>
-        <div class="event-tags">${(event.tags || []).map(tag => `<span>${tag}</span>`).join("")}</div>
-        <div class="event-author">由${event.author || "爸爸"}记录${event.manual ? " · 手动补记" : ""}</div>
+        <div><b>${escapeHTML(event.title)}</b><time>${formatTime(event.at)}</time></div>
+        <p>${escapeHTML(event.detail)}</p>
+        <div class="event-tags">${(event.tags || []).map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div>
+        <small>由${escapeHTML(event.author || "爸爸")}记录</small>
       </div>
-    </article>`).join("") : `<div class="empty-state"><p>这个分类下还没有记录。</p><button class="inline-link" type="button" data-empty-log>现在记录一条 →</button></div>`;
-  const emptyButton = $("[data-empty-log]");
-  emptyButton?.addEventListener("click", () => openLog(state.filter === "all" ? "note" : state.filter));
+    </article>`).join("") : `<div class="empty-state"><p>这个分类下还没有记录。</p><button class="text-button" type="button" data-empty-log>现在记录一条</button></div>`;
+  $("[data-empty-log]")?.addEventListener("click", () => openLog(state.filter === "all" ? "note" : state.filter));
+}
+
+function safetyLabel(record) {
+  const labels = {
+    safe: "安全层已通过",
+    pathological_risk: "病理风险分流",
+    abnormal_cry: "异常哭声分流",
+    danger_signs: "危险体征分流",
+    low_confidence: "低置信度",
+    unreliable: "无法可靠分类"
+  };
+  return labels[record.safetyResult?.status] || "状态未知";
+}
+
+function renderAnalysisHistory() {
+  const records = analysisStore.list().slice(0, 6);
+  const labels = { hunger: "饥饿", sleepy: "困倦", discomfort: "一般性不适", unclassified: "未分类" };
+  $("#analysisHistory").innerHTML = records.length ? records.map(record => `
+    <article class="analysis-history-row">
+      <span class="analysis-reason">${escapeHTML(labels[record.cryReason] || "未分类")}</span>
+      <div><b>${Math.round((record.confidence || 0) * 100)}% 匹配度</b><small>${escapeHTML(safetyLabel(record))}${record.executionResult ? `，环境方案${executionLabel(record.executionResult.status)}` : ""}</small></div>
+      <time>${formatTime(record.timestamp)}</time>
+    </article>`).join("") : `<div class="empty-state compact"><p>完成一次 5 秒检测后，结构化记录会保存在这里。</p></div>`;
 }
 
 function localTimeValue() {
   return new Date().toTimeString().slice(0, 5);
 }
 
-function openLog(type = "feeding") {
-  state.logType = EVENT_META[type] ? type : "note";
+function openLog(type = "note") {
+  state.logType = EVENT_META[type] && type !== "automation" && type !== "safety" && type !== "cry" ? type : "note";
   $("#eventTime").value = localTimeValue();
   $("#eventNote").value = "";
   renderLogFields();
-  $("#logModal").classList.remove("hidden");
-  document.body.style.overflow = "hidden";
-}
-
-function closeLog() {
-  $("#logModal").classList.add("hidden");
-  document.body.style.overflow = "";
+  openModal($("#logModal"));
 }
 
 function renderLogFields() {
   $$("#typeSelector [data-type]").forEach(button => button.classList.toggle("active", button.dataset.type === state.logType));
   $("#logModalTitle").textContent = `记录${EVENT_META[state.logType].label}`;
   const fields = {
-    feeding: `<div class="field"><span>喂养方式</span><div class="segmented"><label><input type="radio" name="feedMode" value="母乳" checked /><span>母乳</span></label><label><input type="radio" name="feedMode" value="奶瓶" /><span>奶瓶</span></label><label><input type="radio" name="feedMode" value="混合" /><span>混合</span></label></div></div><label class="field"><span>时长或奶量</span><input name="amount" placeholder="例如：15 分钟 / 120 ml" value="15 分钟" /></label>`,
-    sleep: `<div class="field"><span>记录状态</span><div class="segmented"><label><input type="radio" name="sleepMode" value="开始睡眠" checked /><span>开始睡眠</span></label><label><input type="radio" name="sleepMode" value="睡眠结束" /><span>睡眠结束</span></label></div></div><label class="field"><span>入睡方式（选填）</span><select name="method"><option>抱哄</option><option>自主入睡</option><option>喂养后入睡</option><option>其他</option></select></label>`,
-    diaper: `<div class="field"><span>尿布类型</span><div class="segmented"><label><input type="radio" name="diaperType" value="湿" checked /><span>湿</span></label><label><input type="radio" name="diaperType" value="便" /><span>便</span></label><label><input type="radio" name="diaperType" value="湿 + 便" /><span>湿 + 便</span></label></div></div>`,
-    soothing: `<label class="field"><span>安抚方式</span><select name="method"><option>抱哄 + 降低刺激</option><option>喂养</option><option>拍嗝 / 调整姿势</option><option>白噪音</option><option>更换尿布</option></select></label><div class="field"><span>宝宝是否缓解？</span><div class="segmented"><label><input type="radio" name="outcome" value="明显缓解" checked /><span>明显缓解</span></label><label><input type="radio" name="outcome" value="有一点" /><span>有一点</span></label><label><input type="radio" name="outcome" value="没有缓解" /><span>没有</span></label></div></div>`,
-    temperature: `<label class="field"><span>体温</span><input type="number" name="temperature" min="34" max="43" step="0.1" value="36.7" required /></label><div class="field"><span>测量方式</span><div class="segmented"><label><input type="radio" name="measure" value="腋温" checked /><span>腋温</span></label><label><input type="radio" name="measure" value="耳温" /><span>耳温</span></label><label><input type="radio" name="measure" value="额温" /><span>额温</span></label></div></div>`,
+    feeding: `<div class="field"><span>喂养方式</span><div class="segmented"><label><input type="radio" name="feedMode" value="母乳" checked /><span>母乳</span></label><label><input type="radio" name="feedMode" value="奶瓶" /><span>奶瓶</span></label><label><input type="radio" name="feedMode" value="混合" /><span>混合</span></label></div></div><label class="field"><span>时长或奶量</span><input name="amount" placeholder="例如：15 分钟或 120 ml" value="15 分钟" /></label>`,
+    sleep: `<div class="field"><span>记录状态</span><div class="segmented"><label><input type="radio" name="sleepMode" value="开始睡眠" checked /><span>开始睡眠</span></label><label><input type="radio" name="sleepMode" value="睡眠结束" /><span>睡眠结束</span></label></div></div>`,
+    diaper: `<div class="field"><span>尿布类型</span><div class="segmented"><label><input type="radio" name="diaperType" value="湿" checked /><span>湿</span></label><label><input type="radio" name="diaperType" value="便" /><span>便</span></label><label><input type="radio" name="diaperType" value="湿和便" /><span>湿和便</span></label></div></div>`,
+    soothing: `<label class="field"><span>安抚方式</span><select name="method"><option>抱哄并降低刺激</option><option>喂养</option><option>拍嗝或调整姿势</option><option>白噪声</option><option>更换尿布</option></select></label><div class="field"><span>宝宝是否缓解？</span><div class="segmented"><label><input type="radio" name="outcome" value="明显缓解" checked /><span>明显缓解</span></label><label><input type="radio" name="outcome" value="有一点" /><span>有一点</span></label><label><input type="radio" name="outcome" value="没有缓解" /><span>没有</span></label></div></div>`,
+    temperature: `<label class="field"><span>体温</span><input type="number" name="temperature" min="34" max="43" step="0.1" value="36.7" required /></label>`,
     note: `<label class="field"><span>事件类型</span><select name="noteType"><option>家庭备注</option><option>皮肤观察</option><option>吐奶记录</option><option>外出记录</option><option>其他</option></select></label>`
   };
   $("#dynamicFields").innerHTML = fields[state.logType] || fields.note;
@@ -189,27 +334,29 @@ function submitLog(event) {
   const note = $("#eventNote").value.trim();
   const builders = {
     feeding: () => { const mode = formValue(formData, "feedMode", "母乳"); const amount = formValue(formData, "amount", "已完成"); return { title: `${mode}喂养`, detail: note || `${amount}，状态已记录`, tags: [mode, amount] }; },
-    sleep: () => { const mode = formValue(formData, "sleepMode", "开始睡眠"); const method = formValue(formData, "method", "抱哄"); return { title: mode, detail: note || `${method}，已开始记录本次睡眠`, tags: [method] }; },
+    sleep: () => { const mode = formValue(formData, "sleepMode", "开始睡眠"); return { title: mode, detail: note || "睡眠状态已记录", tags: [mode] }; },
     diaper: () => { const type = formValue(formData, "diaperType", "湿"); return { title: "更换尿布", detail: note || `${type}尿布，已完成更换`, tags: [type] }; },
     soothing: () => { const method = formValue(formData, "method", "抱哄"); const outcome = formValue(formData, "outcome", "明显缓解"); return { title: `${method}后${outcome}`, detail: note || `本次安抚结果：${outcome}`, tags: [method, outcome] }; },
-    temperature: () => { const value = formValue(formData, "temperature", "36.7"); const measure = formValue(formData, "measure", "腋温"); return { title: `体温 ${value}℃`, detail: note || `${measure}测量，仅作家庭记录`, tags: [measure] }; },
+    temperature: () => { const value = formValue(formData, "temperature", "36.7"); return { title: `体温 ${value}°C`, detail: note || "家庭测量记录", tags: ["体温"] }; },
     note: () => { const type = formValue(formData, "noteType", "家庭备注"); return { title: type, detail: note || "新增一条家庭照护备注", tags: ["家庭可见"] }; }
   };
   const content = (builders[state.logType] || builders.note)();
   state.events.unshift({ id: Date.now(), type: state.logType, at: at.toISOString(), ...content, author: "爸爸", manual: true });
   saveEvents();
-  closeLog();
+  closeModal($("#logModal"));
   showToast(`${EVENT_META[state.logType].label}记录已保存`);
 }
 
 function resetSafetyFlow() {
-  clearInterval(state.timerId);
+  state.countdown.stop();
   cancelAnimationFrame(state.animationId);
   state.stream?.getTracks().forEach(track => track.stop());
+  state.audioContext?.close?.();
   state.recording = false;
   state.safetyAnswers = {};
   state.safetyResult = null;
   state.safetyEventSaved = false;
+  state.safetyAnalysisSaved = false;
   $("#safetyForm").reset();
   $("#safetyContinueButton").disabled = true;
   $("#safetyContinueButton").textContent = "完成以上问题后继续";
@@ -226,7 +373,7 @@ function updateSafetyProgress() {
   const completed = names.filter(name => formData.get(name)).length;
   const button = $("#safetyContinueButton");
   button.disabled = completed !== names.length;
-  button.textContent = completed === names.length ? "查看安全分流结果" : `还需回答 ${names.length - completed} 项`;
+  button.textContent = completed === names.length ? "查看安全检查结果" : `还需回答 ${names.length - completed} 项`;
 }
 
 function submitSafety(event) {
@@ -255,33 +402,41 @@ function showRecorderStage() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function safetyStatusForKind(kind) {
+  return {
+    emergency: SAFETY_STATUS.DANGER_SIGNS,
+    concerning: SAFETY_STATUS.PATHOLOGICAL_RISK,
+    anomaly: SAFETY_STATUS.ABNORMAL_CRY
+  }[kind];
+}
+
 function showSafetyResult(kind, reasons) {
   const configs = {
     emergency: {
       level: "紧急求助",
       title: "请立即寻求紧急医疗帮助",
-      summary: "你报告了可能需要立即处理的危险体征。本次不会继续录音或需求分析。",
+      summary: "你报告了可能需要立即处理的危险体征。本次不会继续录音、分析或设备控制。",
       guidanceTitle: "不要等待哭声分析结果",
-      guidanceBody: "请立即联系当地急救服务或前往急诊。如在中国大陆，可拨打 120。请始终遵循现场专业人员的指示。",
+      guidanceBody: "请立即联系当地急救服务或前往急诊。如在中国大陆，可拨打 120。",
       primary: "查看紧急求助方式",
       icon: "!"
     },
     concerning: {
       level: "需要尽快专业评估",
       title: "这次先不继续普通需求分析",
-      summary: "当前信息不能安全归入饥饿、困倦等常见需求，建议优先联系专业医疗人员。",
+      summary: "当前信息不能安全归入常见需求。不会生成或执行任何环境方案。",
       guidanceTitle: "请尽快联系儿科或医疗咨询渠道",
-      guidanceBody: "说明哭声变化和伴随状态；如果呼吸、肤色或反应出现异常，请升级为紧急求助。",
-      primary: "记录本次情况并返回今天",
+      guidanceBody: "说明哭声变化和伴随状态。如呼吸、肤色或反应出现异常，请升级为紧急求助。",
+      primary: "记录本次情况并返回首页",
       icon: "!"
     },
     anomaly: {
-      level: "异常哭声 · 超出模型能力",
+      level: "异常哭声，超出模型能力",
       title: "这次不显示需求概率",
-      summary: "这段声音与禾禾的个人基线差异较大，演示模型无法将它安全归入常见需求。",
+      summary: "这段声音与个人基线差异较大。不会生成或执行任何环境方案。",
       guidanceTitle: "请结合整体状态进行专业评估",
-      guidanceBody: "这不是疾病诊断。若哭声明显不同于平时、持续无法安抚或伴随其他异常，请尽快联系专业医疗人员。",
-      primary: "记录本次情况并返回今天",
+      guidanceBody: "这不是疾病诊断。如哭声明显不同、持续无法安抚或伴随其他异常，请联系专业医疗人员。",
+      primary: "记录本次情况并返回首页",
       icon: "≈"
     }
   };
@@ -300,36 +455,53 @@ function showSafetyResult(kind, reasons) {
   $("#safetyGuidanceTitle").textContent = config.guidanceTitle;
   $("#safetyGuidanceBody").textContent = config.guidanceBody;
   $("#safetyPrimaryButton").textContent = config.primary;
-  $("#safetyReasonList").innerHTML = reasons.map(reason => `<li><span>!</span><p>${reason}</p></li>`).join("");
+  $("#safetyReasonList").innerHTML = reasons.map(reason => `<li><span>!</span><p>${escapeHTML(reason)}</p></li>`).join("");
   saveSafetyEvent();
+  saveBlockedAnalysis(kind, reasons);
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function saveSafetyEvent() {
   if (!state.safetyResult || state.safetyEventSaved) return;
-  const labels = { emergency: "紧急安全分流", concerning: "建议尽快专业评估", anomaly: "异常哭声 · 超出模型能力" };
+  const labels = { emergency: "紧急安全分流", concerning: "建议尽快专业评估", anomaly: "异常哭声，超出模型能力" };
   state.events.unshift({
-    id: Date.now(),
-    type: "safety",
-    at: state.safetyResult.at,
-    title: labels[state.safetyResult.kind],
-    detail: state.safetyResult.reasons.join("；"),
-    tags: ["安全分流", state.safetyResult.kind === "emergency" ? "紧急" : "未继续需求分析"],
-    author: "爸爸"
+    id: Date.now(), type: "safety", at: state.safetyResult.at,
+    title: labels[state.safetyResult.kind], detail: state.safetyResult.reasons.join("；"),
+    tags: ["自动化已禁止", state.safetyResult.kind === "emergency" ? "紧急" : "未继续分析"], author: "爸爸"
   });
   state.safetyEventSaved = true;
   saveEvents();
 }
 
+function saveBlockedAnalysis(kind, reasons) {
+  if (state.safetyAnalysisSaved) return;
+  const status = safetyStatusForKind(kind);
+  analysisStore.save({
+    id: `cry-${Date.now()}-blocked`, timestamp: new Date().toISOString(), cryReason: "unclassified",
+    probabilityDistribution: {}, confidence: 0,
+    safetyResult: {
+      status,
+      pathologicalRisk: status === SAFETY_STATUS.PATHOLOGICAL_RISK,
+      abnormalCry: status === SAFETY_STATUS.ABNORMAL_CRY,
+      dangerSigns: status === SAFETY_STATUS.DANGER_SIGNS,
+      classificationReliable: false,
+      reasons
+    },
+    recommendedActions: []
+  });
+  state.safetyAnalysisSaved = true;
+  renderAnalysisHistory();
+}
+
 function resetRecorder() {
-  clearInterval(state.timerId);
+  state.countdown.stop();
   cancelAnimationFrame(state.animationId);
   if (state.recording) state.stream?.getTracks().forEach(track => track.stop());
   state.recording = false;
-  state.remaining = 10;
+  state.remaining = RECORDING_DURATION_SECONDS;
   state.levels = [];
-  $("#timerValue").textContent = "10";
-  $("#recordStatus").textContent = "准备好后轻触按钮";
+  $("#timerValue").textContent = String(RECORDING_DURATION_SECONDS);
+  $("#recordStatus").textContent = `轻触按钮开始 ${RECORDING_DURATION_SECONDS} 秒采集`;
   $("#recordButton").disabled = false;
   $("#recordButton").classList.remove("recording");
   $(".demo-actions").classList.remove("hidden");
@@ -351,7 +523,7 @@ function drawIdleWave() {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = "rgba(64,95,83,.35)";
+  ctx.strokeStyle = "rgba(0, 113, 227, .3)";
   ctx.lineWidth = 3;
   ctx.beginPath();
   for (let x = 0; x <= canvas.width; x += 7) {
@@ -361,9 +533,27 @@ function drawIdleWave() {
   ctx.stroke();
 }
 
+function requestAppPermission(kind, onGranted) {
+  if (permissions[kind] === "granted") return onGranted();
+  const content = {
+    microphone: ["◉", "允许使用麦克风？", "仅在你开始检测时采集 5 秒声音。原始音频默认不上传。"],
+    home: ["⌂", "允许访问家庭设备？", "仅用于展示并执行与哭声结果相关、且经你确认的动作。"],
+    notifications: ["◇", "允许发送照护提醒？", "仅在你主动开启提醒时发送观察与家庭交接通知。"]
+  }[kind];
+  state.permissionRequest = { kind, onGranted };
+  $("#permissionGlyph").textContent = content[0];
+  $("#permissionTitle").textContent = content[1];
+  $("#permissionDescription").textContent = content[2];
+  openModal($("#permissionModal"));
+}
+
 async function toggleRecording() {
   if (state.recording) return finishRecording();
-  if (!navigator.mediaDevices?.getUserMedia) {
+  requestAppPermission("microphone", beginRecording);
+}
+
+async function beginRecording() {
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
     showToast("当前打开方式无法使用麦克风，请使用演示分析或 localhost");
     updateQuality("low", "麦克风不可用");
     return;
@@ -378,21 +568,18 @@ async function toggleRecording() {
     state.recorder.start();
     state.recording = true;
     state.levels = [];
-    state.remaining = 10;
     $("#recordButton").classList.add("recording");
     $(".demo-actions").classList.add("hidden");
-    $("#recordStatus").textContent = "正在筛选有效哭声…";
+    $("#recordStatus").textContent = "正在筛选有效哭声";
     updateQuality("good", "正在检测声音");
     visualizeWave();
-    state.timerId = setInterval(() => {
-      state.remaining -= 1;
-      $("#timerValue").textContent = state.remaining;
-      if (state.remaining <= 0) finishRecording();
-    }, 1000);
-  } catch (error) {
+    state.countdown.start();
+  } catch {
+    permissions.microphone = "denied";
+    persistPermissions();
     updateQuality("low", "未获得麦克风权限");
     $("#recordStatus").textContent = "可在浏览器设置中允许麦克风，或体验演示分析";
-    showToast("麦克风未授权，本次不会采集任何音频");
+    showToast("麦克风未授权，本次不会采集音频");
   }
 }
 
@@ -408,7 +595,7 @@ function visualizeWave() {
     if (state.levels.length % 16 === 0) updateQuality(level > 2.4 ? "good" : "low", level > 2.4 ? "有效声音充足" : "声音有些轻");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.beginPath();
-    ctx.strokeStyle = "#5d796c";
+    ctx.strokeStyle = "#0071e3";
     ctx.lineWidth = 3;
     data.forEach((value, index) => {
       const x = index / (data.length - 1) * canvas.width;
@@ -423,87 +610,281 @@ function visualizeWave() {
 function finishRecording() {
   if (!state.recording) return;
   state.recording = false;
-  clearInterval(state.timerId);
+  state.countdown.stop();
   cancelAnimationFrame(state.animationId);
+  if (state.recorder?.state !== "inactive") state.recorder?.stop();
   state.stream?.getTracks().forEach(track => track.stop());
-  state.audioContext?.close();
+  state.audioContext?.close?.();
   $("#recordButton").classList.remove("recording");
   runInference("normal", false);
 }
 
 function runInference(mode = "normal", demo = true) {
-  clearInterval(state.timerId);
+  state.countdown.stop();
   if (state.recording) {
     state.recording = false;
+    if (state.recorder?.state !== "inactive") state.recorder?.stop();
     state.stream?.getTracks().forEach(track => track.stop());
   }
   $("#recordButton").disabled = true;
-  $("#recordStatus").textContent = "正在分析声音、状态与个人记录…";
+  $("#recordStatus").textContent = "正在分析声音、状态与个人记录";
   updateQuality("good", "声音已采集");
-  const messages = ["正在筛选有效哭声…", "正在检查声音适用范围…", "正在对照个人声音基线…"];
-  let index = 0;
-  const progress = setInterval(() => { $("#recordStatus").textContent = messages[Math.min(index++, messages.length - 1)]; }, 550);
+  const messages = ["正在筛选有效哭声", "正在检查声音适用范围", "正在对照个人声音基线"];
+  let messageIndex = 0;
+  const progress = setInterval(() => {
+    $("#recordStatus").textContent = messages[Math.min(messageIndex++, messages.length - 1)];
+  }, 420);
   setTimeout(() => {
     clearInterval(progress);
     if (mode === "anomaly") {
       $("#recordButton").disabled = false;
-      return showSafetyResult("anomaly", ["声音音高与音质明显偏离禾禾过去的可靠录音", "演示模型将这段声音识别为分布外输入，无法安全生成需求概率"]);
+      return showSafetyResult("anomaly", ["声音音高与音质明显偏离过去的可靠录音", "模型识别为分布外输入，无法安全生成需求概率"]);
     }
-    state.analysisId += 1;
+    state.analysisSequence += 1;
     const mean = state.levels.length ? state.levels.reduce((a, b) => a + b, 0) / state.levels.length : 6;
-    const scenarios = mean < 2.4 ? [[44, 34, 22], [51, 30, 19]] : [[16, 78, 6], [76, 16, 8], [22, 58, 20]];
-    const probabilities = scenarios[(state.analysisId - 1) % scenarios.length];
+    let probabilities;
+    if (mode === "low") probabilities = [44, 34, 22];
+    else if (mode === "sleepy") probabilities = [16, 78, 6];
+    else if (mean < 2.4) probabilities = [44, 34, 22];
+    else probabilities = [[16, 78, 6], [76, 16, 8], [22, 58, 20]][(state.analysisSequence - 1) % 3];
     showResult(probabilities, demo);
-  }, 2100);
+  }, 1550);
 }
 
 function showResult(probabilities, demo) {
   const labels = ["饥饿", "困倦", "一般性不适"];
-  const max = Math.max(...probabilities);
-  const top = probabilities.indexOf(max);
-  const sorted = [...probabilities].sort((a, b) => b - a);
-  const confidence = max >= 75 && max - sorted[1] >= 25 ? "high" : max >= 55 ? "medium" : "low";
-  state.activeResult = { probabilities, top, confidence, demo, saved: false };
-  $("#topProbability").textContent = `${max}%`;
+  const reasonKeys = [CRY_REASONS.HUNGER, CRY_REASONS.SLEEPY, CRY_REASONS.DISCOMFORT];
+  const maximum = Math.max(...probabilities);
+  const top = probabilities.indexOf(maximum);
+  const confidenceBand = classifyConfidence(probabilities);
+  const reliable = confidenceBand === "high";
+  const safetyResult = reliable ? createSafeResult() : {
+    status: confidenceBand === "low" ? SAFETY_STATUS.LOW_CONFIDENCE : SAFETY_STATUS.UNRELIABLE,
+    pathologicalRisk: false,
+    abnormalCry: false,
+    dangerSigns: false,
+    classificationReliable: false
+  };
+  const analysis = {
+    id: `cry-${Date.now()}-${state.analysisSequence}`,
+    timestamp: new Date().toISOString(),
+    cryReason: reasonKeys[top],
+    probabilityDistribution: {
+      hunger: probabilities[0] / 100,
+      sleepy: probabilities[1] / 100,
+      discomfort: probabilities[2] / 100
+    },
+    confidence: maximum / 100,
+    classificationReliable: reliable,
+    safetyResult,
+    context: { temperature: 25.8, humidity: 46, diaperConcern: false }
+  };
+  const plan = buildAutomationPlan(analysis, smartHomeAdapter.listDevices());
+  analysis.recommendedActions = plan.actions;
+  analysisStore.save(analysis);
+  state.activeResult = { ...analysis, probabilities, top, confidenceBand, demo, plan };
+
+  $("#topProbability").textContent = `${maximum}%`;
   $("#topReason").textContent = labels[top];
-  $("#confidenceLabel").textContent = confidence === "high" ? "较高置信度" : confidence === "medium" ? "中等置信度 · 建议结合排查" : "低置信度 · 建议逐项排查";
-  $("#resultSummary").textContent = confidence === "high" ? ["声音与近期喂养间隔都更接近饥饿信号。", "声音节奏与较长清醒时长都更接近困倦信号。", "声音表现不集中，建议先检查身体与环境状态。"][top] : "几种可能性仍较接近，仅凭这段声音不能可靠判断。";
-  $("#matchRing").style.background = `conic-gradient(${confidence === "low" ? "var(--peach)" : "var(--moss-dark)"} 0 ${max}%, #e0ddd5 ${max}% 100%)`;
-  ["hunger", "sleepy", "discomfort"].forEach((key, i) => {
-    $(`#${key}Value`).textContent = `${probabilities[i]}%`;
-    setTimeout(() => { $(`#${key}Bar`).style.width = `${probabilities[i]}%`; }, 80);
+  $("#confidenceLabel").textContent = reliable ? "较高置信度" : confidenceBand === "medium" ? "无法可靠分类" : "低置信度";
+  $("#resultSummary").textContent = reliable
+    ? ["声音与近期喂养间隔更接近饥饿信号。", "声音节奏与较长清醒时长更接近困倦信号。", "声音更接近一般性不适，请结合环境与身体状态。 "][top]
+    : "几种可能性仍较接近，仅凭这段声音不能可靠判断。";
+  $("#matchRing").style.setProperty("--match", `${maximum}%`);
+  ["hunger", "sleepy", "discomfort"].forEach((key, index) => {
+    $(`#${key}Value`).textContent = `${probabilities[index]}%`;
+    $(`#${key}Bar`).style.width = `${probabilities[index]}%`;
   });
+
   const actions = [
-    ["按熟悉的方式喂养", "距离上次喂养已有一段时间。按家庭日常方式尝试，并观察宝宝是否主动寻找或逐渐平静。"],
-    ["降低刺激，准备入睡", "调暗灯光、减少说话与逗弄，使用禾禾熟悉的抱哄方式，观察 10 分钟。"],
-    ["先检查身体与环境", "检查尿布、衣物松紧、体温与姿势；若状态异常或持续剧烈哭闹，请及时寻求专业帮助。"]
+    ["按熟悉的方式喂养", "距离上次喂养已有一段时间。先按家庭日常方式尝试，再观察宝宝是否逐渐平静。"],
+    ["降低刺激，准备入睡", "减少说话与逗弄，使用禾禾熟悉的抱哄方式并观察。"],
+    ["先检查身体与环境", "检查尿布、衣物松紧、体温与姿势。如状态异常或持续剧烈哭闹，请寻求专业帮助。"]
   ];
   $("#actionTitle").textContent = actions[top][0];
   $("#actionDescription").textContent = actions[top][1];
-  $("#actionCard").classList.toggle("hidden", confidence !== "high");
-  $("#checklistCard").classList.toggle("hidden", confidence === "high");
-  $("#audioQuality").textContent = state.levels.length && state.levels.reduce((a, b) => a + b, 0) / state.levels.length < 2.4 ? "声音偏轻" : "清晰";
+  $("#actionCard").classList.toggle("hidden", !reliable);
+  $("#checklistCard").classList.toggle("hidden", reliable);
   const evidence = top === 0
-    ? [["支持饥饿", "距离上次喂养已有一段时间。"], ["支持饥饿", "哭声节奏与禾禾以往饥饿记录相似。"]]
+    ? [["支持饥饿", "距离上次喂养已有一段时间。"], ["支持饥饿", "哭声节奏与过去饥饿记录相似。"]]
     : top === 1
-      ? [["支持困倦", "哭声强度逐渐回落，接近以往困倦时的节奏。"], ["支持困倦", "当前清醒时长比近 7 天常见时长多约 18 分钟。"]]
-      : [["建议检查", "声音特征分散，无法对应到单一日常需求。"], ["建议检查", "需要结合尿布、姿势、体温和精神状态。"]];
-  $("#evidenceList").innerHTML = evidence.map(item => `<li class="support"><span>↑</span><p><b>${item[0]}</b>${item[1]}</p></li>`).join("") + `<li class="neutral"><span>·</span><p><b>仍有不确定</b>${demo ? "本次为模拟分析，不具备真实识别能力。" : "录音中可能存在少量背景声音。"}</p></li>`;
+      ? [["支持困倦", "哭声强度逐渐回落，接近以往困倦时的节奏。"], ["支持困倦", "当前清醒时长比近期常见时长多约 18 分钟。"]]
+      : [["建议检查", "声音特征更接近一般性不适。"], ["需要结合", "尿布、姿势、体温和精神状态仍需人工确认。"]];
+  $("#evidenceList").innerHTML = evidence.map(item => `<li><span>↑</span><p><b>${item[0]}</b>${item[1]}</p></li>`).join("")
+    + `<li class="neutral"><span>i</span><p><b>仍有不确定</b>${demo ? "本次为模拟分析，不具备真实识别能力。" : "录音中可能存在少量背景声音。"}</p></li>`;
+
+  renderAutomationPlan(plan);
   $("#recorderStage").classList.add("hidden");
   $("#resultStage").classList.remove("hidden");
   $("#recordButton").disabled = false;
-  if (!state.activeResult.saved) {
-    state.events.unshift({ id: Date.now(), type: "cry", at: new Date().toISOString(), title: `哭闹 · 更可能${labels[top]}`, detail: `模拟分析匹配度 ${max}%，${confidence === "high" ? "较高" : confidence === "medium" ? "中等" : "低"}置信度`, tags: ["安全问询已完成", "模拟分析", "待反馈"], author: "爸爸" });
-    state.activeResult.saved = true;
-    saveEvents();
-  }
+  state.events.unshift({
+    id: Date.now(), type: "cry", at: analysis.timestamp,
+    title: `哭声分析：${reliable ? `更可能${labels[top]}` : "暂时无法可靠判断"}`,
+    detail: `采集 ${RECORDING_DURATION_SECONDS} 秒，匹配度 ${maximum}%`,
+    tags: [reliable ? "较高置信度" : "自动化已禁止", demo ? "模拟分析" : "待反馈"], author: "爸爸"
+  });
+  saveEvents();
+  renderAnalysisHistory();
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function deviceStatusLabel(status) {
+  return {
+    online: "在线",
+    connected: "已连接",
+    offline: "离线",
+    unauthorized: "未授权"
+  }[status] || "未知";
+}
+
+function renderAutomationPlan(plan) {
+  const card = $("#automationPlanCard");
+  if (plan.status === PLAN_STATUS.BLOCKED || !plan.actions.length) {
+    card.classList.add("hidden");
+    return;
+  }
+  card.classList.remove("hidden");
+  $("#automationPlanTitle").textContent = plan.reason === CRY_REASONS.SLEEPY ? "睡眠环境方案" : plan.reason === CRY_REASONS.HUNGER ? "夜间喂养辅助" : "环境舒适方案";
+  $("#automationPlanStatus").textContent = "待授权";
+  $("#automationPlanStatus").className = "status-badge pending";
+  $("#automationActionList").innerHTML = plan.actions.map(action => {
+    const device = smartHomeAdapter.listDevices().find(item => item.id === action.deviceId);
+    return `<label class="plan-action ${action.enabled ? "" : "unavailable"}">
+      <input type="checkbox" data-plan-action value="${escapeHTML(action.id)}" ${action.enabled ? "checked" : "disabled"} />
+      <span class="plan-check" aria-hidden="true"></span>
+      <span class="plan-device"><b>${escapeHTML(device?.name || action.deviceId)}</b><small>${escapeHTML(action.label)}，${escapeHTML(action.detail)}</small><em>${escapeHTML(deviceStatusLabel(action.deviceStatus))}</em></span>
+    </label>`;
+  }).join("");
+  const unavailable = plan.actions.some(action => !action.enabled);
+  $("#offlineDecision").classList.toggle("hidden", !unavailable);
+  $("#executionStatus").classList.add("hidden");
+  $("#allowExecutionButton").classList.remove("hidden");
+  $("#allowExecutionButton").disabled = false;
+  $$('[data-plan-action]').forEach(input => input.addEventListener("change", updatePlanSelection));
+  updatePlanSelection();
+}
+
+function selectedActionIds() {
+  return $$('[data-plan-action]:checked').map(input => input.value);
+}
+
+function updatePlanSelection() {
+  const count = selectedActionIds().length;
+  $("#allowExecutionButton").disabled = count === 0;
+  $("#allowExecutionButton").textContent = count ? `允许执行 ${count} 项` : "请至少保留一项";
+}
+
+function openAutomationConfirmation(actionIds = selectedActionIds()) {
+  if (!state.activeResult?.plan || !actionIds.length) return showToast("请至少保留一项可用动作");
+  state.retryActionIds = actionIds;
+  const plan = state.activeResult.plan;
+  $("#automationConfirmList").innerHTML = plan.actions.filter(action => actionIds.includes(action.id)).map(action => {
+    const device = smartHomeAdapter.listDevices().find(item => item.id === action.deviceId);
+    return `<div><b>${escapeHTML(device?.name || action.deviceId)}</b><span>${escapeHTML(action.label)}，${escapeHTML(action.detail)}</span></div>`;
+  }).join("");
+  openModal($("#automationConfirmModal"));
+}
+
+function declineAutomation(reason = "user_declined") {
+  if (state.activeResult?.plan) {
+    const consent = new UserConsent({ planId: state.activeResult.plan.id, granted: false, actionIds: [], source: reason });
+    analysisStore.recordConsent(state.activeResult.id, consent);
+  }
+  closeModal($("#automationConfirmModal"));
+  showToast("未发送任何设备控制命令");
+}
+
+async function executeAutomation() {
+  const active = state.activeResult;
+  if (!active?.plan) return;
+  const consent = new UserConsent({ planId: active.plan.id, granted: true, actionIds: state.retryActionIds });
+  analysisStore.recordConsent(active.id, consent);
+  closeModal($("#automationConfirmModal"));
+  const status = $("#executionStatus");
+  status.className = "execution-status executing";
+  status.innerHTML = "<b>执行中</b><span>正在逐台发送已授权动作，请稍候。</span>";
+  $("#allowExecutionButton").disabled = true;
+  await new Promise(resolve => setTimeout(resolve, 650));
+  const result = await smartHomeAdapter.executePlan(active.plan, consent);
+  analysisStore.recordExecution(active.id, result);
+  renderExecutionResult(result);
+  renderDevices();
+  renderHomeSmartCard();
+  const completed = result.results.filter(item => item.status === "completed").length;
+  state.events.unshift({
+    id: Date.now(), type: "automation", at: new Date().toISOString(),
+    title: `环境方案${executionLabel(result.status)}`,
+    detail: `已完成 ${completed} 项，共授权 ${result.results.length} 项`,
+    tags: [executionLabel(result.status), "用户已授权"], author: "爸爸"
+  });
+  saveEvents();
+}
+
+function executionLabel(status) {
+  return {
+    executing: "执行中",
+    completed: "已完成",
+    partial_failed: "部分失败",
+    failed: "执行失败",
+    cancelled: "已取消"
+  }[status] || "状态未知";
+}
+
+function renderExecutionResult(result) {
+  const status = $("#executionStatus");
+  const failed = result.results.filter(item => item.status === "failed");
+  const completed = result.results.filter(item => item.status === "completed");
+  status.className = `execution-status ${result.status}`;
+  status.innerHTML = `<b>${executionLabel(result.status)}</b><span>${completed.length} 项已完成${failed.length ? `，${failed.length} 项失败。其他设备状态不受影响。` : "，设备状态已更新。"}</span>${failed.length ? '<button class="secondary-button" id="retryFailedButton" type="button">重试失败项</button>' : ""}`;
+  $("#automationPlanStatus").textContent = executionLabel(result.status);
+  $("#automationPlanStatus").className = `status-badge ${result.status === PLAN_STATUS.COMPLETED ? "safe" : "warning"}`;
+  $("#allowExecutionButton").classList.add("hidden");
+  $("#retryFailedButton")?.addEventListener("click", () => openAutomationConfirmation(failed.map(item => item.actionId)));
+}
+
+function cancelEntirePlan() {
+  const active = state.activeResult;
+  if (!active?.plan) return;
+  active.plan.status = PLAN_STATUS.CANCELLED;
+  const consent = new UserConsent({ planId: active.plan.id, granted: false, actionIds: [], source: "cancel_entire_plan" });
+  analysisStore.recordConsent(active.id, consent);
+  $("#automationPlanStatus").textContent = "已取消";
+  $("#automationPlanStatus").className = "status-badge neutral";
+  $("#allowExecutionButton").classList.add("hidden");
+  $("#offlineDecision").classList.add("hidden");
+  $("#executionStatus").className = "execution-status cancelled";
+  $("#executionStatus").innerHTML = "<b>方案已取消</b><span>未发送任何设备控制命令。</span>";
+}
+
+function deviceStateSummary(device) {
+  if (device.category === "crib") return device.state.rocking ? `轻摇开启，${device.state.intensity === "low" ? "低" : "中"}强度` : "摇动关闭";
+  if (device.category === "light") return `${device.state.on ? "已开启" : "已关闭"}，亮度 ${device.state.brightness}% ，${device.state.colorTemperature}K`;
+  if (device.category === "climate") return `当前 ${device.state.currentTemperature}°C，目标 ${device.state.targetTemperature}°C`;
+  if (device.category === "sensor") return `${device.state.temperature}°C，湿度 ${device.state.humidity}% RH`;
+  if (device.category === "audio") return device.state.on ? `播放中，音量 ${device.state.volume}%` : "当前关闭";
+  return "状态已同步";
+}
+
+function renderDevices() {
+  const devices = smartHomeAdapter.listDevices();
+  $("#deviceCountLabel").textContent = `${devices.length} 台`;
+  $("#deviceList").innerHTML = devices.map(device => `
+    <article class="device-row">
+      <span class="device-icon">${escapeHTML(device.name.slice(0, 1))}</span>
+      <div><b>${escapeHTML(device.name)}</b><small>${escapeHTML(deviceStateSummary(device))}</small><em>${escapeHTML(device.capabilities.map(item => item.id).join("，"))}</em></div>
+      <span class="device-status ${escapeHTML(device.status)}">${escapeHTML(deviceStatusLabel(device.status))}</span>
+    </article>`).join("");
+  $("#futureAdapterList").textContent = FUTURE_SMART_HOME_ADAPTERS.join(" / ");
+  const granted = permissions.home === "granted";
+  $("#homePermissionTitle").textContent = granted ? "家庭设备权限已允许" : permissions.home === "denied" ? "家庭设备权限未允许" : "家庭设备权限待确认";
+  $("#homePermissionDescription").textContent = granted ? "仅在确认具体方案后发送命令。" : "连接设备时才会请求权限。";
+  $("#connectHomeButton").textContent = granted ? "已连接" : "连接家庭设备";
+  $("#connectHomeButton").disabled = granted;
 }
 
 function startObservation() {
   state.observationSeconds = 600;
-  $("#observeModal").classList.remove("hidden");
-  document.body.style.overflow = "hidden";
+  openModal($("#observeModal"));
   updateObserveTimer();
   clearInterval(state.observationId);
   state.observationId = setInterval(() => {
@@ -519,45 +900,59 @@ function updateObserveTimer() {
   $("#observeTimer").textContent = `${minutes}:${seconds}`;
 }
 
-function closeObservation() {
-  $("#observeModal").classList.add("hidden");
-  document.body.style.overflow = "";
-}
-
 function saveOutcome(value) {
   const label = { relieved: "明显缓解", some: "有一点缓解", none: "没有缓解" }[value];
-  state.events.unshift({ id: Date.now(), type: "soothing", at: new Date().toISOString(), title: `抱哄后${label}`, detail: `降低刺激并观察，结果：${label}`, tags: ["抱哄 + 降低刺激", label], author: "爸爸" });
+  state.events.unshift({ id: Date.now(), type: "soothing", at: new Date().toISOString(), title: `照护后${label}`, detail: `本次建议反馈：${label}`, tags: [label], author: "爸爸" });
+  if (state.activeResult) analysisStore.recordFeedback(state.activeResult.id, { userFeedback: value, interventionEffective: value === "relieved" });
   saveEvents();
-  closeObservation();
-  showToast("反馈已保存，已更新禾禾的个人记录");
+  renderAnalysisHistory();
+  closeModal($("#observeModal"));
+  showToast("反馈已保存，已更新禾禾的个性化记录");
 }
 
-function renderInsights() {
-  const cries = state.events.filter(event => event.type === "cry").length;
-  $("#weekCryCount").innerHTML = `${Math.max(18, cries + 14)}<em>次</em>`;
-  const criesByDay = [2, 4, 3, 5, 2, 1, 3];
-  const sleepByDay = [8, 7, 8, 5, 8, 9, 8];
-  $("#comboChart").innerHTML = criesByDay.map((value, index) => `<div class="combo-col"><div class="combo-bars"><i style="height:${value * 18}px"></i><i style="height:${sleepByDay[index] * 10}px"></i></div><small>周${"一二三四五六日"[index]}</small></div>`).join("");
-  const heat = [0,0,0,1,0,1,1,0,1,1,0,1,1,2,1,1,2,2,4,4,3,2,1,0];
-  $("#heatmap").innerHTML = heat.map(level => `<i class="l${level}"></i>`).join("");
+function saveAnalysisFeedback(value, button) {
+  if (!state.activeResult) return;
+  const effective = value === "effective" ? true : value === "not_effective" ? false : null;
+  analysisStore.recordFeedback(state.activeResult.id, { userFeedback: value, interventionEffective: effective });
+  $$('[data-analysis-feedback]').forEach(item => item.classList.toggle("selected", item === button));
+  renderAnalysisHistory();
+  showToast("反馈已保存，不会作为医学诊断依据");
 }
 
 function initializeDate() {
   const now = new Date();
   $("#dateLabel").textContent = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(now);
-  const hour = now.getHours();
-  $("#todayTitle").innerHTML = `${hour < 11 ? "早上" : hour < 18 ? "下午" : "晚上"}好，<em>慢慢来。</em>`;
 }
 
-$$('[data-nav]').forEach(button => button.addEventListener("click", () => {
-  navigate(button.dataset.nav);
-  if (button.dataset.nav === "listen") resetSafetyFlow();
-}));
+function renderEverything() {
+  initializeDate();
+  renderHome();
+  renderTimeline();
+  renderAnalysisHistory();
+  renderDevices();
+  drawIdleWave();
+  $("#notificationPermissionText").textContent = permissions.notifications === "granted" ? "通知权限已允许" : "按需申请通知权限";
+}
+
+$("#onboardingNextButton").addEventListener("click", () => {
+  if (state.onboardingPage < 2) {
+    state.onboardingPage += 1;
+    renderOnboarding();
+  } else finishOnboarding();
+});
+$("#skipOnboardingButton").addEventListener("click", finishOnboarding);
+$("#appleLoginButton").addEventListener("click", mockLogin);
+$("#emailContinueButton").addEventListener("click", () => $("#emailLoginForm").classList.toggle("hidden"));
+$("#emailLoginForm").addEventListener("submit", event => { event.preventDefault(); mockLogin(); });
+[$("#termsLink"), $("#privacyLink")].forEach(link => link.addEventListener("click", event => { event.preventDefault(); showToast("原型阶段展示说明，不会离开当前页面"); }));
+
+$$('[data-nav]').forEach(button => button.addEventListener("click", () => navigate(button.dataset.nav)));
+$$('[data-back-home]').forEach(button => button.addEventListener("click", () => navigate("home")));
 $("#listenHero").addEventListener("click", () => { navigate("listen"); resetSafetyFlow(); });
+$("#homeSmartCard").addEventListener("click", () => navigate("devices"));
 $$('[data-log]').forEach(button => button.addEventListener("click", () => openLog(button.dataset.log)));
 $$('#typeSelector [data-type]').forEach(button => button.addEventListener("click", () => { state.logType = button.dataset.type; renderLogFields(); }));
-$("#closeLogModal").addEventListener("click", closeLog);
-$("#logModal").addEventListener("click", event => { if (event.target === event.currentTarget) closeLog(); });
+$("#closeLogModal").addEventListener("click", () => closeModal($("#logModal")));
 $("#logForm").addEventListener("submit", submitLog);
 $("#safetyForm").addEventListener("change", updateSafetyProgress);
 $("#safetyForm").addEventListener("submit", submitSafety);
@@ -566,50 +961,91 @@ $("#editSafetyButton").addEventListener("click", resetSafetyFlow);
 $("#restartSafetyButton").addEventListener("click", resetSafetyFlow);
 $$('#timelineFilters [data-filter]').forEach(button => button.addEventListener("click", () => {
   state.filter = button.dataset.filter;
-  $$('#timelineFilters [data-filter]').forEach(item => item.classList.toggle("active", item === button));
+  $$("#timelineFilters [data-filter]").forEach(item => item.classList.toggle("active", item === button));
   renderTimeline();
 }));
 $("#recordButton").addEventListener("click", toggleRecording);
-$("#demoButton").addEventListener("click", () => runInference("normal", true));
+$("#demoButton").addEventListener("click", () => runInference("sleepy", true));
+$("#lowConfidenceDemoButton").addEventListener("click", () => runInference("low", true));
 $("#anomalyDemoButton").addEventListener("click", () => runInference("anomaly", true));
 $("#newAnalysisButton").addEventListener("click", resetRecorder);
 $("#safetyPrimaryButton").addEventListener("click", () => {
-  if (state.safetyResult?.kind === "emergency") {
-    showToast("如在中国大陆，请立即拨打 120 或前往急诊");
-    return;
-  }
-  navigate("today");
-  showToast("安全分流记录已保存在家庭时间线");
+  if (state.safetyResult?.kind === "emergency") return showToast("如在中国大陆，请立即拨打 120 或前往急诊");
+  navigate("home");
+  showToast("安全分流记录已保存在记录页");
 });
-$("#safetySummaryButton").addEventListener("click", () => showToast("摘要将包含安全问询、哭声变化和时间信息；不会自动分享"));
+$("#safetySummaryButton").addEventListener("click", () => showToast("摘要仅预览，不会自动分享"));
 $("#startObserveButton").addEventListener("click", startObservation);
-$("#closeObserve").addEventListener("click", closeObservation);
-$("#finishLaterButton").addEventListener("click", () => { closeObservation(); showToast("观察仍在进行，可稍后从时间线补充反馈"); });
+$("#closeObserve").addEventListener("click", () => closeModal($("#observeModal")));
+$("#finishLaterButton").addEventListener("click", () => { closeModal($("#observeModal")); showToast("可稍后从记录页补充反馈"); });
 $$('[data-outcome]').forEach(button => button.addEventListener("click", () => saveOutcome(button.dataset.outcome)));
+$$('[data-analysis-feedback]').forEach(button => button.addEventListener("click", () => saveAnalysisFeedback(button.dataset.analysisFeedback, button)));
+$("#allowExecutionButton").addEventListener("click", () => openAutomationConfirmation());
+$("#executeRemainingButton").addEventListener("click", () => openAutomationConfirmation(selectedActionIds()));
+$("#cancelEntirePlanButton").addEventListener("click", cancelEntirePlan);
+$("#confirmAutomationButton").addEventListener("click", executeAutomation);
+$("#declineAutomationButton").addEventListener("click", () => declineAutomation());
+$("#connectHomeButton").addEventListener("click", () => requestAppPermission("home", () => { renderDevices(); showToast("家庭设备已连接，执行仍需逐次确认"); }));
+$("#notificationButton").addEventListener("click", () => requestAppPermission("notifications", () => { $("#notificationPermissionText").textContent = "通知权限已允许"; showToast("照护提醒已开启"); }));
+$("#notificationSettings").addEventListener("click", () => requestAppPermission("notifications", () => { $("#notificationPermissionText").textContent = "通知权限已允许"; showToast("照护提醒已开启"); }));
+$("#allowPermissionButton").addEventListener("click", () => {
+  const request = state.permissionRequest;
+  if (!request) return;
+  permissions[request.kind] = "granted";
+  persistPermissions();
+  closeModal($("#permissionModal"));
+  state.permissionRequest = null;
+  request.onGranted();
+});
+$("#denyPermissionButton").addEventListener("click", () => {
+  const request = state.permissionRequest;
+  if (request) {
+    permissions[request.kind] = "denied";
+    persistPermissions();
+  }
+  state.permissionRequest = null;
+  closeModal($("#permissionModal"));
+  showToast("未授权，本次不会访问该权限");
+});
+$("#revisitOnboardingButton").addEventListener("click", () => {
+  state.onboardingPage = 0;
+  renderOnboarding();
+  showOnlyGate($("#onboardingScreen"));
+});
+$("#logoutButton").addEventListener("click", () => {
+  flow.loggedIn = false;
+  persistFlow();
+  showOnlyGate($("#loginScreen"));
+});
 
 const simpleToasts = {
-  babySwitch: "多宝宝切换将在 P2 版本开放",
-  notificationButton: "没有新的重要提醒",
-  caregiverButton: "爸爸从 13:04 开始照护",
-  handoffButton: "已生成过去 6 小时照护摘要",
-  customizeQuick: "快捷记录排序将在设置中开放",
-  endShiftButton: "交接摘要已准备，确认后可结束本次照护",
+  babySwitch: "多宝宝切换将在后续版本开放",
+  handoffButton: "过去 6 小时照护摘要已准备",
   probabilityInfo: "概率来自声音和上下文的模拟结果，不代表医学诊断",
-  otherActionsButton: "还可尝试拍嗝、检查尿布或调整姿势",
-  reportButton: "报告预览将在 P1 后续迭代开放，不会自动分享",
   editProfileButton: "宝宝档案编辑将在下一迭代开放",
-  inviteButton: "家庭邀请需要云同步能力，将在后续接入",
-  notificationSettings: "提醒设置将在下一迭代开放",
-  knowledgeButton: "知识内容需完成专业审核后开放",
-  privacyButton: "原始音频默认不上传；分析、训练和分享将分别授权",
-  exportButton: "导出前将允许选择时间范围和数据类型"
+  knowledgeButton: "安全知识内容需完成专业审核后开放",
+  privacyButton: "原始音频默认不上传，分析与训练将分别授权",
+  personalizationButton: "只学习照护偏好，不把设备行为用于医学诊断"
 };
 Object.entries(simpleToasts).forEach(([id, message]) => $(`#${id}`)?.addEventListener("click", () => showToast(message)));
-$("#completeHandoff").addEventListener("click", event => { event.currentTarget.textContent = "已读"; event.currentTarget.disabled = true; showToast("已向妈妈同步阅读状态"); });
-$$('[data-insight-detail]').forEach(button => button.addEventListener("click", () => { navigate("timeline"); state.filter = "cry"; $$('#timelineFilters [data-filter]').forEach(item => item.classList.toggle("active", item.dataset.filter === "cry")); renderTimeline(); }));
 
-initializeDate();
-renderToday();
-renderTimeline();
-renderInsights();
-drawIdleWave();
+[$("#logModal"), $("#observeModal"), $("#automationConfirmModal"), $("#permissionModal")].forEach(modal => {
+  modal.addEventListener("click", event => {
+    if (event.target !== modal) return;
+    if (modal === $("#automationConfirmModal")) declineAutomation("sheet_dismissed");
+    else if (modal === $("#permissionModal")) $("#denyPermissionButton").click();
+    else closeModal(modal);
+  });
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+  const open = $$(".modal-backdrop:not(.hidden)").at(-1);
+  if (!open) return;
+  if (open === $("#automationConfirmModal")) declineAutomation("escape_dismissed");
+  else if (open === $("#permissionModal")) $("#denyPermissionButton").click();
+  else closeModal(open);
+});
+
+renderEverything();
+setTimeout(showPostLaunchDestination, 850);
