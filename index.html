@@ -11,10 +11,15 @@
 <body>
   <section class="launch-screen" id="launchScreen" aria-label="CrySense 启动页">
     <div class="brand-lockup">
-      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="launch-symbol" aria-hidden="true">
+        <span class="launch-orbit hunger"></span><span class="launch-orbit sleepy"></span><span class="launch-orbit comfort"></span>
+        <span class="brand-mark"><i></i><i></i><i></i></span>
+      </span>
+      <p class="launch-kicker">听见小小哭声，也看见你的用心</p>
       <h1>CrySense</h1>
-      <p>听懂哭声，先守住安全。</p>
+      <p>陪你更安心地理解宝宝此刻的需要</p>
     </div>
+    <p class="launch-assurance"><span aria-hidden="true">✓</span>安全优先的婴儿照护助手</p>
   </section>
 
   <section class="auth-screen hidden" id="onboardingScreen" aria-labelledby="onboardingTitle">
@@ -27,19 +32,19 @@
         <div class="onboarding-visual listen-visual" aria-hidden="true"><span class="brand-mark"><i></i><i></i><i></i></span></div>
         <p class="section-label">5 秒分析</p>
         <h1 id="onboardingTitle">听懂宝宝的哭声</h1>
-        <p>采集一小段哭声，辅助判断饥饿、困倦或一般性不适。</p>
+        <p>只需安静听 5 秒，一起分辨宝宝是饿了、困了，还是有些不舒服。</p>
       </article>
       <article class="onboarding-page" data-onboarding-page="1">
         <div class="onboarding-visual home-visual" aria-hidden="true"><span>卧室</span><b>24.1°C</b><small>灯光与婴儿床待命</small></div>
         <p class="section-label">由哭因驱动</p>
-        <h1>让环境一起响应宝宝</h1>
-        <p>只推荐与当前哭因相关的设备动作，并在你明确允许后执行。</p>
+        <h1>让房间也轻轻回应</h1>
+        <p>合适的灯光、温度和摇床会先形成方案，得到你的允许后才会行动。</p>
       </article>
       <article class="onboarding-page" data-onboarding-page="2">
         <div class="onboarding-visual safety-visual" aria-hidden="true"><span>!</span><b>安全优先</b></div>
         <p class="section-label danger-label">医疗安全边界</p>
         <h1>辅助判断，不替代诊断</h1>
-        <p>异常哭声、危险体征或低置信度会停止自动化，优先进入安全分流。</p>
+        <p>发现异常或无法可靠判断时，我们会停下自动化，陪你先确认宝宝是否安全。</p>
       </article>
     </div>
     <footer class="onboarding-footer">
@@ -53,9 +58,9 @@
   <section class="auth-screen login-screen hidden" id="loginScreen" aria-labelledby="loginTitle">
     <div class="login-content">
       <div class="brand-mark large" aria-hidden="true"><i></i><i></i><i></i></div>
-      <p class="section-label">欢迎使用 CrySense</p>
-      <h1 id="loginTitle">照护宝宝，从一次安心的判断开始。</h1>
-      <p>登录后可同步家庭记录与宝宝的个性化照护偏好。</p>
+      <p class="section-label">很高兴和你一起照顾禾禾</p>
+      <h1 id="loginTitle">每一次认真倾听，都在让照护更安心。</h1>
+      <p>登录后，家人可以一起保存禾禾的声音记录与照护偏好。</p>
       <button class="apple-login-button" id="appleLoginButton" type="button"><span aria-hidden="true">●</span>使用 Apple 登录</button>
       <button class="secondary-button" id="emailContinueButton" type="button">使用邮箱继续</button>
       <form class="email-form hidden" id="emailLoginForm">
@@ -128,7 +133,7 @@
           <div class="section-heading"><div><p class="section-label">今天的片段</p><h2 id="homeSummaryTitle">禾禾的一天</h2></div><button class="text-button" type="button" data-nav="timeline">完整时间线</button></div>
           <div class="summary-grid">
             <div><small>哭声次数</small><strong id="cryCount">3</strong><span>次</span></div>
-            <div><small>最近分析</small><strong id="latestReason">困倦</strong><span id="latestAnalysisTime">5 小时前</span></div>
+            <div><small>最近分析</small><strong id="latestReason" data-reason="sleepy">困倦</strong><span id="latestAnalysisTime">5 小时前</span></div>
             <div><small>安抚反馈</small><strong>3 / 5</strong><span>明显缓解</span></div>
           </div>
           <div class="mini-timeline" id="todayTimeline"></div>
@@ -319,7 +324,7 @@
         <div class="hidden" id="resultStage">
           <nav class="secondary-nav"><button class="back-button" id="newAnalysisButton" type="button">‹ 重新分析</button><span>分析结果</span><button class="done-button" type="button" data-back-home>完成</button></nav>
           <div class="safety-cleared-banner"><span>✓</span><p><b>安全层允许继续需求分析</b><small>未报告危险体征，声音在演示模型范围内</small></p></div>
-          <section class="result-hero">
+          <section class="result-hero" id="resultHero" data-reason="sleepy">
             <div class="match-ring" id="matchRing"><span><strong id="topProbability">78%</strong><small>综合匹配度</small></span></div>
             <p class="section-label" id="confidenceLabel">较高置信度</p>
             <h1>更可能是<span id="topReason">困倦</span></h1>
@@ -327,9 +332,9 @@
           </section>
           <section class="result-card probability-card">
             <div class="section-heading"><h2>可能性分布</h2><button class="info-button" id="probabilityInfo" type="button" aria-label="概率说明">i</button></div>
-            <div class="prob-row"><div><i class="dot hunger-dot"></i><b>饥饿</b><strong id="hungerValue">16%</strong></div><span><i id="hungerBar"></i></span></div>
-            <div class="prob-row"><div><i class="dot sleepy-dot"></i><b>困倦</b><strong id="sleepyValue">78%</strong></div><span><i id="sleepyBar"></i></span></div>
-            <div class="prob-row"><div><i class="dot discomfort-dot"></i><b>一般性不适</b><strong id="discomfortValue">6%</strong></div><span><i id="discomfortBar"></i></span></div>
+            <div class="prob-row reason-hunger"><div><i class="dot hunger-dot"></i><b>饥饿</b><strong id="hungerValue">16%</strong></div><span><i id="hungerBar"></i></span></div>
+            <div class="prob-row reason-sleepy"><div><i class="dot sleepy-dot"></i><b>困倦</b><strong id="sleepyValue">78%</strong></div><span><i id="sleepyBar"></i></span></div>
+            <div class="prob-row reason-discomfort"><div><i class="dot discomfort-dot"></i><b>一般性不适</b><strong id="discomfortValue">6%</strong></div><span><i id="discomfortBar"></i></span></div>
           </section>
           <section class="result-card evidence-card"><p class="section-label">判断依据</p><h2>哪些信息影响了结果</h2><ul id="evidenceList"></ul></section>
           <section class="result-card care-action-card" id="actionCard">

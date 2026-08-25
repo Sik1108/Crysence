@@ -7,10 +7,10 @@
 - 用户：在高压力、单手和夜间场景中操作的新手照护者。
 - 任务：快速判断是否安全、完成五秒采集、理解结果，并在可控情况下授权环境干预。
 - 品牌感受：可信、平静、温和，但安全信息必须直接清楚。
-- 视觉方向：接近原生 iOS 的克制层级，不采用缩小网页式 Dashboard，也不依靠装饰性渐变制造层次。
+- 视觉方向：接近原生 iOS 的克制层级，以参考图的薰衣草紫作为品牌 tint，搭配少量薄荷、粉与暖黄粉彩；不采用缩小网页式 Dashboard。
 - 页面原则：一屏一个清晰主任务，关键状态紧邻触发它的操作。
 
-Taste skill 调节值：`DESIGN_VARIANCE=4`、`MOTION_INTENSITY=3`、`VISUAL_DENSITY=5`。这意味着布局有适度识别度，动效只服务状态变化，并容纳时间线和洞察所需的信息密度。
+Taste skill 调节值：`DESIGN_VARIANCE=5`、`MOTION_INTENSITY=4`、`VISUAL_DENSITY=5`。这意味着保留 iOS 的稳定层级，通过更有亲和力的色彩和轻量状态动效增强品牌识别，并容纳时间线和洞察所需的信息密度。
 
 ## Tokens
 
@@ -29,12 +29,27 @@ Taste skill 调节值：`DESIGN_VARIANCE=4`、`MOTION_INTENSITY=3`、`VISUAL_DEN
 | Background | `#f5f5f7` |
 | Surface | `#ffffff` |
 | Primary text | `#1d1d1f` |
-| Apple Blue | `#0071e3` |
+| Brand tint | `#8a57cc`，白字对比度满足 WCAG AA |
+| Brand highlight | `#a971f1`，仅用于装饰和非文字色块 |
+| Brand soft | `#f1eafb` |
 | Card radius | 20px |
 | Control radius | 15px |
 | Page gutter | 20px，紧凑屏最小 16px |
 | Minimum touch target | 44 × 44px |
 | Primary button height | 52px |
+
+## Cry reason palette
+
+哭因色只帮助扫读，必须始终配合类别文字、概率或图标，不能只靠颜色表达结论。
+
+| 哭因 | 强语义色 | 装饰色 | 柔和背景 |
+| --- | --- | --- | --- |
+| 饥饿 | `#bd4963` | `#eb818b` | `#fff0f3` |
+| 困倦 | `#7255bc` | `#8b6eda` | `#f1edfc` |
+| 一般性不适 | `#8d6118` | `#eacf74` | `#fff7df` |
+| 无法可靠分类 | `#26758a` | `#7ac8d2` | `#eaf7fa` |
+
+病理风险、异常哭声和危险体征继续使用红/橙安全语义色，不得被粉彩哭因色弱化。
 
 ## Layout and navigation
 

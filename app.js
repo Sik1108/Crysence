@@ -242,7 +242,9 @@ function renderHome() {
   const analyses = analysisStore.list();
   if (analyses.length) {
     const labels = { hunger: "饥饿", sleepy: "困倦", discomfort: "一般性不适", unclassified: "未分类" };
-    $("#latestReason").textContent = labels[analyses[0].cryReason] || "未分类";
+    const latestReason = analyses[0].cryReason || "unclassified";
+    $("#latestReason").textContent = labels[latestReason] || "未分类";
+    $("#latestReason").dataset.reason = latestReason;
     $("#latestAnalysisTime").textContent = relativeTime(analyses[0].timestamp);
   }
   $("#todayTimeline").innerHTML = todayEvents.slice(0, 4).map(event => `
@@ -298,7 +300,7 @@ function renderAnalysisHistory() {
   const labels = { hunger: "饥饿", sleepy: "困倦", discomfort: "一般性不适", unclassified: "未分类" };
   $("#analysisHistory").innerHTML = records.length ? records.map(record => `
     <article class="analysis-history-row">
-      <span class="analysis-reason">${escapeHTML(labels[record.cryReason] || "未分类")}</span>
+      <span class="analysis-reason" data-reason="${escapeHTML(record.cryReason || "unclassified")}">${escapeHTML(labels[record.cryReason] || "未分类")}</span>
       <div><b>${Math.round((record.confidence || 0) * 100)}% 匹配度</b><small>${escapeHTML(safetyLabel(record))}${record.executionResult ? `，环境方案${executionLabel(record.executionResult.status)}` : ""}</small></div>
       <time>${formatTime(record.timestamp)}</time>
     </article>`).join("") : `<div class="empty-state compact"><p>完成一次 5 秒检测后，结构化记录会保存在这里。</p></div>`;
@@ -532,7 +534,7 @@ function drawIdleWave() {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = "rgba(0, 113, 227, .3)";
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--brand-wave-idle").trim() || "rgba(138, 87, 204, .3)";
   ctx.lineWidth = 3;
   ctx.beginPath();
   for (let x = 0; x <= canvas.width; x += 7) {
@@ -614,6 +616,7 @@ function visualizeWave() {
   const canvas = $("#waveform");
   const ctx = canvas.getContext("2d");
   const data = new Uint8Array(state.analyser.frequencyBinCount);
+  const brandColor = getComputedStyle(document.documentElement).getPropertyValue("--brand").trim() || "#8a57cc";
   const draw = () => {
     state.animationId = requestAnimationFrame(draw);
     state.analyser.getByteTimeDomainData(data);
@@ -622,7 +625,7 @@ function visualizeWave() {
     if (state.levels.length % 16 === 0) updateQuality(level > 2.4 ? "good" : "low", level > 2.4 ? "有效声音充足" : "声音有些轻");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.beginPath();
-    ctx.strokeStyle = "#0071e3";
+    ctx.strokeStyle = brandColor;
     ctx.lineWidth = 3;
     data.forEach((value, index) => {
       const x = index / (data.length - 1) * canvas.width;
@@ -739,6 +742,10 @@ function showResult(probabilities, demo) {
   analysis.recommendedActions = plan.actions;
   analysisStore.save(analysis);
   state.activeResult = { ...analysis, probabilities, top, confidenceBand, demo, plan };
+
+  $("#resultHero").dataset.reason = analysis.cryReason;
+  $("#actionCard").dataset.reason = analysis.cryReason;
+  $("#automationPlanCard").dataset.reason = analysis.cryReason;
 
   $("#topProbability").textContent = `${maximum}%`;
   $("#topReason").textContent = labels[top];
@@ -1160,4 +1167,4 @@ document.addEventListener("keydown", event => {
 });
 
 renderEverything();
-setTimeout(showPostLaunchDestination, 850);
+setTimeout(showPostLaunchDestination, 1200);
