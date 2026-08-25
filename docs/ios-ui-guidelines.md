@@ -10,7 +10,7 @@
 - 视觉方向：接近原生 iOS 的克制层级，以参考图的薰衣草紫作为品牌 tint，搭配少量薄荷、粉与暖黄粉彩；不采用缩小网页式 Dashboard。
 - 页面原则：一屏一个清晰主任务，关键状态紧邻触发它的操作。
 
-Taste skill 调节值：`DESIGN_VARIANCE=5`、`MOTION_INTENSITY=4`、`VISUAL_DENSITY=5`。这意味着保留 iOS 的稳定层级，通过更有亲和力的色彩和轻量状态动效增强品牌识别，并容纳时间线和洞察所需的信息密度。
+Taste skill 调节值：`DESIGN_VARIANCE=6`、`MOTION_INTENSITY=4`、`VISUAL_DENSITY=5`。这意味着保留 iOS 的稳定层级，通过双列小卡、有限破形和轻量状态动效增强品牌识别，并容纳时间线、洞察和轻社区所需的信息密度。
 
 ## Tokens
 
@@ -55,9 +55,11 @@ Taste skill 调节值：`DESIGN_VARIANCE=5`、`MOTION_INTENSITY=4`、`VISUAL_DEN
 
 - 内容始终考虑 `env(safe-area-inset-*)`，固定 Tab Bar 不遮挡页面末尾内容。
 - 一级页面可用 Large Title；录音、结果和设备详情等任务页使用普通导航标题。
-- 固定五栏 Tab Bar：`首页 / 时间线 / 设备 / 洞察 / 我的`。哭声检测仍由首页主卡片进入。
+- 固定五栏 Tab Bar：`首页 / 时间线 / 设备 / 社区 / 我的`。原洞察通过时间线内的“记录 / 洞察”分段访问，哭声检测仍由首页主卡片进入。
 - Home 只保留一个高视觉权重主 CTA。智能家居卡片使用白色 surface、细边框和次级文字，不与检测入口竞争。
 - 卡片内部先给结论和状态，再给解释或次级操作。避免多层卡片嵌套。
+- 主检测卡允许原创婴儿插画超出卡片边缘 16-28pt，但不得遮挡文案、CTA 或造成横向溢出；375pt 以上可使用双列小卡，更窄设备回到单列。
+- 社区与宝宝小记默认私密，AI 艺术作品必须标注为 AI 创作，公开前使用 Bottom Sheet 再次确认。
 
 ## Interaction
 

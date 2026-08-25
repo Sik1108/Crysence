@@ -15,6 +15,12 @@ import {
   createSafeResult
 } from "./src/smart-home.js";
 import { AnalysisStore } from "./src/analysis-store.js";
+import {
+  AI_ART_STYLE,
+  AI_JOB_STATUS,
+  CommunityStore,
+  MOMENT_VISIBILITY
+} from "./src/community.js";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -67,6 +73,7 @@ const seedEvents = [
 
 const smartHomeAdapter = new MockSmartHomeAdapter();
 const analysisStore = new AnalysisStore(localStorage);
+const communityStore = new CommunityStore(localStorage);
 const flow = parseStored(FLOW_KEY, { onboardingComplete: false, loggedIn: false });
 const permissions = parseStored(PERMISSION_KEY, {
   microphone: "prompt",
@@ -104,7 +111,16 @@ const state = {
   onboardingPage: 0,
   permissionRequest: null,
   retryActionIds: [],
-  activeDeviceId: null
+  activeDeviceId: null,
+  timelineSegment: "record",
+  communityFilter: "all",
+  momentHasMockPhoto: false,
+  pendingMomentId: null,
+  aiStyle: AI_ART_STYLE.STICKER,
+  aiSourceSelected: false,
+  aiJobId: null,
+  aiResultSelection: 0,
+  aiGenerationTimer: null
 };
 
 state.countdown = new RecordingCountdown({
@@ -119,7 +135,7 @@ const views = {
   home: $("#homeView"),
   timeline: $("#timelineView"),
   devices: $("#devicesView"),
-  insights: $("#insightsView"),
+  community: $("#communityView"),
   profile: $("#profileView"),
   listen: $("#listenView")
 };
@@ -183,9 +199,11 @@ function navigate(name) {
   if (name === "timeline") {
     renderTimeline();
     renderAnalysisHistory();
+    renderTimelineSegment();
+    renderInsights();
   }
   if (name === "devices") renderDevices();
-  if (name === "insights") renderInsights();
+  if (name === "community") renderCommunity();
   if (name === "home") renderHome();
 }
 
@@ -281,6 +299,28 @@ function renderTimeline() {
       </div>
     </article>`).join("") : `<div class="empty-state"><p>这个分类下还没有记录。</p><button class="text-button" type="button" data-empty-log>现在记录一条</button></div>`;
   $("[data-empty-log]")?.addEventListener("click", () => openLog(state.filter === "all" ? "note" : state.filter));
+}
+
+function setTimelineSegment(segment) {
+  state.timelineSegment = segment === "insight" ? "insight" : "record";
+  renderTimelineSegment();
+  if (state.timelineSegment === "insight") renderInsights();
+}
+
+function renderTimelineSegment() {
+  const recordActive = state.timelineSegment === "record";
+  $("#timelineRecordPanel").hidden = !recordActive;
+  $("#timelineInsightPanel").hidden = recordActive;
+  $("#timelineRecordPanel").classList.toggle("active", recordActive);
+  $("#timelineInsightPanel").classList.toggle("active", !recordActive);
+  $$('[data-timeline-segment="record"]').forEach(button => {
+    if (button.getAttribute("role") === "tab") button.setAttribute("aria-selected", String(recordActive));
+    button.classList.toggle("active", recordActive && button.getAttribute("role") === "tab");
+  });
+  $$('[data-timeline-segment="insight"]').forEach(button => {
+    if (button.getAttribute("role") === "tab") button.setAttribute("aria-selected", String(!recordActive));
+    button.classList.toggle("active", !recordActive && button.getAttribute("role") === "tab");
+  });
 }
 
 function safetyLabel(record) {
@@ -1017,6 +1057,219 @@ function saveAnalysisFeedback(value, button) {
   showToast("反馈已保存，不会作为医学诊断依据");
 }
 
+function communityTime(iso) {
+  const time = relativeTime(iso);
+  return time === "刚刚" ? "刚刚分享" : time;
+}
+
+function renderCommunity() {
+  const posts = communityStore.listPosts(state.communityFilter);
+  $("#communityFeed").innerHTML = posts.length ? posts.map(post => `
+    <article class="community-post" data-community-post="${escapeHTML(post.id)}">
+      <header class="community-post-head">
+        <span class="community-avatar">${escapeHTML(post.avatar)}</span>
+        <span><b>${escapeHTML(post.author)}</b><small>${escapeHTML(post.ageBand)}，${escapeHTML(communityTime(post.createdAt))}</small></span>
+        <button class="post-more" type="button" data-report-post="${escapeHTML(post.id)}" aria-label="举报或隐藏这条内容">•••</button>
+      </header>
+      <p>${escapeHTML(post.text)}</p>
+      ${post.image ? `<figure class="community-post-image"><img src="${escapeHTML(post.image)}" alt="${post.aiGenerated ? "AI 艺术创作：穿紫色衣服的卡通宝宝" : "宝宝成长小记演示图片"}" width="512" height="768" /></figure>` : ""}
+      ${post.aiGenerated ? '<p class="ai-disclosure"><span aria-hidden="true">AI</span>AI 艺术创作</p>' : ""}
+      <div class="community-tags">${post.tags.map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div>
+      <footer class="community-actions">
+        <button class="${post.liked ? "active" : ""}" type="button" data-post-reaction="warm" data-post-id="${escapeHTML(post.id)}"><span aria-hidden="true">♡</span>抱抱你 ${post.reactions.warm}</button>
+        <button type="button" data-post-reaction="same" data-post-id="${escapeHTML(post.id)}"><span aria-hidden="true">○</span>我们也经历过 ${post.reactions.same}</button>
+        <button class="${post.saved ? "active" : ""}" type="button" data-post-reaction="save" data-post-id="${escapeHTML(post.id)}"><span aria-hidden="true">◇</span>${post.saved ? "已收藏" : "收藏"}</button>
+      </footer>
+    </article>`).join("") : `<div class="community-empty"><span aria-hidden="true">禾</span><h2>这个主题还没有新的分享</h2><p>先把今天的小瞬间留给自己吧。</p><button class="primary-button" type="button" data-empty-moment>记录宝宝</button></div>`;
+
+  $$('[data-post-reaction="warm"], [data-post-reaction="save"]').forEach(button => button.addEventListener("click", () => {
+    communityStore.setPostReaction(button.dataset.postId, button.dataset.postReaction);
+    renderCommunity();
+  }));
+  $$('[data-post-reaction="same"]').forEach(button => button.addEventListener("click", () => showToast("谢谢你的回应，这份理解已经送达")));
+  $$('[data-report-post]').forEach(button => button.addEventListener("click", () => showToast("已隐藏这条内容，举报流程将在社区 Beta 中接入")));
+  $("[data-empty-moment]")?.addEventListener("click", openMomentComposer);
+}
+
+function renderMockPhotoPicker() {
+  const picker = $("#mockPhotoPicker");
+  picker.classList.toggle("added", state.momentHasMockPhoto);
+  $("b", picker).textContent = state.momentHasMockPhoto ? "演示照片已添加" : "添加一张照片";
+  $("small", picker).textContent = state.momentHasMockPhoto ? "只保存演示素材状态，不会读取本机照片" : "原型只记录演示状态，不会读取或上传真实照片";
+  $("#addMockPhotoButton").textContent = state.momentHasMockPhoto ? "移除" : "添加演示照片";
+}
+
+function openMomentComposer() {
+  $("#momentForm").reset();
+  $("#momentCharacterCount").textContent = "0";
+  state.momentHasMockPhoto = false;
+  renderMockPhotoPicker();
+  openModal($("#momentModal"));
+}
+
+function openCommunityPublishConfirmation(moment) {
+  state.pendingMomentId = moment.id;
+  $("#communityPublishPreview").innerHTML = `<b>禾禾爸爸，4-6 个月</b><p>${escapeHTML(moment.text)}</p><small>不会公开完整生日、位置或家庭信息</small>`;
+  openModal($("#communityPublishModal"));
+}
+
+function submitMoment(event) {
+  event.preventDefault();
+  const text = $("#momentText").value.trim();
+  if (!text) return showToast("写下一点今天想记住的事吧");
+  const requestedVisibility = new FormData(event.currentTarget).get("momentVisibility") || MOMENT_VISIBILITY.PRIVATE;
+  const linkedTimeline = $("#linkMomentToTimeline").checked;
+  const linkedEventId = linkedTimeline ? Date.now() : null;
+  const moment = communityStore.saveMoment({
+    text,
+    visibility: requestedVisibility === MOMENT_VISIBILITY.COMMUNITY ? MOMENT_VISIBILITY.PRIVATE : requestedVisibility,
+    hasMockPhoto: state.momentHasMockPhoto,
+    linkedTimelineEventIds: linkedEventId ? [linkedEventId] : []
+  });
+  if (linkedEventId) {
+    state.events.unshift({
+      id: linkedEventId,
+      type: "note",
+      at: moment.createdAt,
+      title: "宝宝小记",
+      detail: moment.text,
+      tags: ["成长瞬间", "家庭记录"],
+      author: "爸爸"
+    });
+    saveEvents();
+  }
+  closeModal($("#momentModal"));
+  if (requestedVisibility === MOMENT_VISIBILITY.COMMUNITY) return openCommunityPublishConfirmation(moment);
+  renderCommunity();
+  showToast(requestedVisibility === MOMENT_VISIBILITY.FAMILY ? "这一个小瞬间，已经和家人收好了" : "这一个小瞬间，已经替你收好了");
+}
+
+function resetAIStudio() {
+  clearTimeout(state.aiGenerationTimer);
+  state.aiGenerationTimer = null;
+  state.aiSourceSelected = false;
+  state.aiStyle = AI_ART_STYLE.STICKER;
+  state.aiJobId = null;
+  state.aiResultSelection = 0;
+  $("#aiSourceTitle").textContent = "选择演示照片";
+  $("#aiSourceDescription").textContent = "轻触后即可体验完整创作流程";
+  $$('[data-ai-style]').forEach(button => button.classList.toggle("active", button.dataset.aiStyle === AI_ART_STYLE.STICKER));
+  $("#aiGenerationState").className = "ai-generation-state empty";
+  $("#aiGenerationState").innerHTML = "<p>选好演示照片和风格后，就可以开始创作。</p>";
+  $("#startAIGenerationButton").classList.remove("hidden");
+  $("#startAIGenerationButton").disabled = true;
+  $("#saveAIArtworkButton").classList.add("hidden");
+  $("#retryAIArtworkButton").classList.add("hidden");
+  $("#cancelAIGenerationButton").classList.add("hidden");
+}
+
+function openAIStudio() {
+  resetAIStudio();
+  openModal($("#aiArtModal"));
+}
+
+function selectDemoPhoto() {
+  state.aiSourceSelected = true;
+  $("#aiSourceTitle").textContent = "禾禾的演示照片已准备好";
+  $("#aiSourceDescription").textContent = "只使用应用内预制素材，不会访问本机相册";
+  $("#startAIGenerationButton").disabled = false;
+  showToast("演示照片已准备好，不会读取本机相册");
+}
+
+function styleLabel(style) {
+  return {
+    sticker: "宝宝大头贴",
+    pictureBook: "绘本小主角",
+    comic: "温柔漫画格"
+  }[style] || "宝宝小作品";
+}
+
+function renderAIArtworkResults() {
+  const label = styleLabel(state.aiStyle);
+  $("#aiGenerationState").className = `ai-generation-state completed style-${state.aiStyle}`;
+  $("#aiGenerationState").innerHTML = `<p><b>${escapeHTML(label)}已经画好</b><span>选择更喜欢的一张，先私密保存。</span></p><div class="ai-result-grid">
+    <button class="active" type="button" data-ai-result="0"><span><img src="assets/crysense-baby-listening.webp" alt="${escapeHTML(label)}候选一" width="512" height="768" /></span><b>柔和紫</b></button>
+    <button type="button" data-ai-result="1"><span><img src="assets/crysense-baby-listening.webp" alt="${escapeHTML(label)}候选二" width="512" height="768" /></span><b>薄荷光</b></button>
+  </div>`;
+  $$('[data-ai-result]').forEach(button => button.addEventListener("click", () => {
+    state.aiResultSelection = Number(button.dataset.aiResult);
+    $$('[data-ai-result]').forEach(item => item.classList.toggle("active", item === button));
+  }));
+  $("#startAIGenerationButton").classList.add("hidden");
+  $("#cancelAIGenerationButton").classList.add("hidden");
+  $("#saveAIArtworkButton").classList.remove("hidden");
+  $("#retryAIArtworkButton").classList.remove("hidden");
+}
+
+function startAIGeneration() {
+  if (!state.aiSourceSelected) return;
+  const job = communityStore.createArtworkJob(state.aiStyle);
+  state.aiJobId = job.id;
+  communityStore.updateArtworkJob(job.id, AI_JOB_STATUS.GENERATING);
+  $("#aiGenerationState").className = "ai-generation-state generating";
+  $("#aiGenerationState").innerHTML = '<div class="art-skeleton"><i></i><span></span></div><p><b>正在把这张照片轻轻画成小作品</b><span>可以随时取消，演示素材不会离开本机。</span></p>';
+  $("#startAIGenerationButton").classList.add("hidden");
+  $("#cancelAIGenerationButton").classList.remove("hidden");
+  state.aiGenerationTimer = setTimeout(() => {
+    communityStore.updateArtworkJob(job.id, AI_JOB_STATUS.COMPLETED, { outputAssetIds: [`mock-${state.aiStyle}-a`, `mock-${state.aiStyle}-b`] });
+    state.aiGenerationTimer = null;
+    renderAIArtworkResults();
+  }, 1100);
+}
+
+function cancelAIGeneration() {
+  clearTimeout(state.aiGenerationTimer);
+  state.aiGenerationTimer = null;
+  if (state.aiJobId) communityStore.updateArtworkJob(state.aiJobId, AI_JOB_STATUS.CANCELLED);
+  closeModal($("#aiArtModal"));
+  showToast("创作已取消，演示照片没有被保存");
+}
+
+function saveAIArtwork() {
+  if (!state.aiJobId || communityStore.getArtworkJob(state.aiJobId)?.status !== AI_JOB_STATUS.COMPLETED) return;
+  communityStore.saveMoment({
+    text: `禾禾的${styleLabel(state.aiStyle)}，今天也替你收好了。`,
+    visibility: MOMENT_VISIBILITY.PRIVATE,
+    hasMockPhoto: true,
+    aiArtworkId: state.aiJobId
+  });
+  closeModal($("#aiArtModal"));
+  renderCommunity();
+  showToast("小作品已私密保存，不会自动分享到社区");
+}
+
+function retryAIArtwork() {
+  state.aiJobId = null;
+  state.aiResultSelection = 0;
+  $("#aiGenerationState").className = "ai-generation-state empty";
+  $("#aiGenerationState").innerHTML = "<p>可以换一种风格，再画一次。</p>";
+  $("#startAIGenerationButton").classList.remove("hidden");
+  $("#startAIGenerationButton").disabled = !state.aiSourceSelected;
+  $("#saveAIArtworkButton").classList.add("hidden");
+  $("#retryAIArtworkButton").classList.add("hidden");
+}
+
+function closeAIStudio() {
+  if (state.aiGenerationTimer) return cancelAIGeneration();
+  closeModal($("#aiArtModal"));
+}
+
+function confirmCommunityPublish() {
+  if (!state.pendingMomentId) return;
+  communityStore.publishMoment(state.pendingMomentId);
+  state.pendingMomentId = null;
+  closeModal($("#communityPublishModal"));
+  renderCommunity();
+  showToast("已经分享到同阶段家庭，也可以随时改回私密");
+}
+
+function keepMomentPrivate() {
+  state.pendingMomentId = null;
+  closeModal($("#communityPublishModal"));
+  renderCommunity();
+  showToast("先替你私密收好，想分享时再决定");
+}
+
 function initializeDate() {
   const now = new Date();
   $("#dateLabel").textContent = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(now);
@@ -1029,6 +1282,8 @@ function renderEverything() {
   renderAnalysisHistory();
   renderDevices();
   renderInsights();
+  renderTimelineSegment();
+  renderCommunity();
   drawIdleWave();
   $("#notificationPermissionText").textContent = permissions.notifications === "granted" ? "通知权限已允许" : "按需申请通知权限";
 }
@@ -1045,10 +1300,37 @@ $("#emailContinueButton").addEventListener("click", () => $("#emailLoginForm").c
 $("#emailLoginForm").addEventListener("submit", event => { event.preventDefault(); mockLogin(); });
 [$("#termsLink"), $("#privacyLink")].forEach(link => link.addEventListener("click", event => { event.preventDefault(); showToast("原型阶段展示说明，不会离开当前页面"); }));
 
-$$('[data-nav]').forEach(button => button.addEventListener("click", () => navigate(button.dataset.nav)));
+$$('[data-nav]').forEach(button => button.addEventListener("click", () => {
+  if (button.dataset.timelineTarget) setTimelineSegment(button.dataset.timelineTarget);
+  navigate(button.dataset.nav);
+}));
+$$('[data-timeline-segment]').forEach(button => button.addEventListener("click", () => setTimelineSegment(button.dataset.timelineSegment)));
 $$('[data-back-home]').forEach(button => button.addEventListener("click", () => navigate("home")));
 $("#listenHero").addEventListener("click", () => { navigate("listen"); resetSafetyFlow(); });
 $("#homeSmartCard").addEventListener("click", () => navigate("devices"));
+[$("#communityAddButton"), $("#openMomentComposer")].forEach(button => button.addEventListener("click", openMomentComposer));
+$("#openAIStudio").addEventListener("click", openAIStudio);
+$("#closeMomentModal").addEventListener("click", () => closeModal($("#momentModal")));
+$("#momentText").addEventListener("input", event => { $("#momentCharacterCount").textContent = String(event.currentTarget.value.length); });
+$("#addMockPhotoButton").addEventListener("click", () => { state.momentHasMockPhoto = !state.momentHasMockPhoto; renderMockPhotoPicker(); });
+$("#momentForm").addEventListener("submit", submitMoment);
+$$('[data-community-filter]').forEach(button => button.addEventListener("click", () => {
+  state.communityFilter = button.dataset.communityFilter;
+  $$('[data-community-filter]').forEach(item => item.classList.toggle("active", item === button));
+  renderCommunity();
+}));
+$("#closeAIArtModal").addEventListener("click", closeAIStudio);
+$("#selectDemoPhotoButton").addEventListener("click", selectDemoPhoto);
+$$('[data-ai-style]').forEach(button => button.addEventListener("click", () => {
+  state.aiStyle = button.dataset.aiStyle;
+  $$('[data-ai-style]').forEach(item => item.classList.toggle("active", item === button));
+}));
+$("#startAIGenerationButton").addEventListener("click", startAIGeneration);
+$("#cancelAIGenerationButton").addEventListener("click", cancelAIGeneration);
+$("#saveAIArtworkButton").addEventListener("click", saveAIArtwork);
+$("#retryAIArtworkButton").addEventListener("click", retryAIArtwork);
+$("#confirmCommunityPublishButton").addEventListener("click", confirmCommunityPublish);
+$("#declineCommunityPublishButton").addEventListener("click", keepMomentPrivate);
 $$('[data-log]').forEach(button => button.addEventListener("click", () => openLog(button.dataset.log)));
 $$('#typeSelector [data-type]').forEach(button => button.addEventListener("click", () => { state.logType = button.dataset.type; renderLogFields(); }));
 $("#closeLogModal").addEventListener("click", () => closeModal($("#logModal")));
@@ -1148,11 +1430,13 @@ const simpleToasts = {
 };
 Object.entries(simpleToasts).forEach(([id, message]) => $(`#${id}`)?.addEventListener("click", () => showToast(message)));
 
-[$("#logModal"), $("#observeModal"), $("#automationConfirmModal"), $("#permissionModal"), $("#deviceDetailModal")].forEach(modal => {
+[$("#logModal"), $("#observeModal"), $("#automationConfirmModal"), $("#permissionModal"), $("#deviceDetailModal"), $("#momentModal"), $("#aiArtModal"), $("#communityPublishModal")].forEach(modal => {
   modal.addEventListener("click", event => {
     if (event.target !== modal) return;
     if (modal === $("#automationConfirmModal")) declineAutomation("sheet_dismissed");
     else if (modal === $("#permissionModal")) $("#denyPermissionButton").click();
+    else if (modal === $("#communityPublishModal")) keepMomentPrivate();
+    else if (modal === $("#aiArtModal")) closeAIStudio();
     else closeModal(modal);
   });
 });
@@ -1163,6 +1447,8 @@ document.addEventListener("keydown", event => {
   if (!open) return;
   if (open === $("#automationConfirmModal")) declineAutomation("escape_dismissed");
   else if (open === $("#permissionModal")) $("#denyPermissionButton").click();
+  else if (open === $("#communityPublishModal")) keepMomentPrivate();
+  else if (open === $("#aiArtModal")) closeAIStudio();
   else closeModal(open);
 });
 

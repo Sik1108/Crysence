@@ -100,12 +100,19 @@
 
         <button class="listen-hero" id="listenHero" type="button">
           <span class="hero-copy">
-            <small>禾禾在叫你啦</small>
-            <strong>开始哭声检测</strong>
-            <span>轻触一次，我们会安静听 5 秒并自动给出结果</span>
+            <small>听听宝宝此刻的需要</small>
+            <strong>宝宝在哭吗？</strong>
+            <span>安静听 5 秒，我们先一起确认禾禾是否安全。</span>
+            <span class="hero-cta">开始 5 秒检测</span>
           </span>
-          <span class="five-second-badge"><b>5</b><small>秒</small></span>
+          <img class="listen-baby-art" src="assets/crysense-baby-listening.webp" alt="" aria-hidden="true" width="512" height="768" />
+          <span class="five-second-badge" aria-hidden="true"><b>5</b><small>秒</small></span>
         </button>
+
+        <section class="care-glance-grid" aria-label="今日照护摘要">
+          <article class="glance-card feeding-glance"><small>上次喂养</small><strong>2 小时前</strong><span>和平时节奏接近</span></article>
+          <article class="glance-card sleep-glance"><small>今日睡眠</small><strong>5 小时 42 分</strong><span>刚刚清醒 1 小时 26 分</span></article>
+        </section>
 
         <button class="smart-home-card" id="homeSmartCard" type="button" aria-label="进入我的家庭">
           <span class="smart-card-header">
@@ -130,7 +137,7 @@
         </section>
 
         <section class="home-summary day-summary" aria-labelledby="homeSummaryTitle">
-          <div class="section-heading"><div><p class="section-label">今天的片段</p><h2 id="homeSummaryTitle">禾禾的一天</h2></div><button class="text-button" type="button" data-nav="timeline">完整时间线</button></div>
+          <div class="section-heading"><div><p class="section-label">今天的片段</p><h2 id="homeSummaryTitle">禾禾的一天</h2></div><button class="text-button" type="button" data-nav="timeline" data-timeline-target="record">完整时间线</button></div>
           <div class="summary-grid">
             <div><small>哭声次数</small><strong id="cryCount">3</strong><span>次</span></div>
             <div><small>最近分析</small><strong id="latestReason" data-reason="sleepy">困倦</strong><span id="latestAnalysisTime">5 小时前</span></div>
@@ -142,35 +149,80 @@
         <section class="recent-card" aria-labelledby="recentTitle">
           <div class="section-heading"><h2 id="recentTitle">最近一次分析</h2><span class="status-badge safe">已完成反馈</span></div>
           <p>更可能是困倦，降低刺激并抱哄后明显缓解。</p>
-          <button class="row-link" type="button" data-nav="timeline">看看当时的完整记录 <span>›</span></button>
+          <button class="row-link" type="button" data-nav="timeline" data-timeline-target="record">看看当时的完整记录 <span>›</span></button>
         </section>
       </section>
 
       <section class="view" id="timelineView" aria-labelledby="timelineTitle">
         <div class="page-heading">
-          <div><p class="section-label">一家人的照护足迹</p><h1 id="timelineTitle">时间线</h1><p>禾禾今天经历了什么，谁陪在身边，都在这里慢慢连起来。</p></div>
+          <div><p class="section-label">一家人的照护足迹</p><h1 id="timelineTitle">时间线</h1><p>禾禾今天经历了什么，以及从记录里发现了什么，都在这里慢慢连起来。</p></div>
           <button class="round-add" type="button" data-log="note" aria-label="新增记录">+</button>
         </div>
-        <section class="records-overview" aria-label="本周摘要">
-          <div><small>本周哭闹</small><strong>18 次</strong></div>
-          <div><small>反馈完整度</small><strong>83%</strong></div>
-          <div><small>常见时段</small><strong>18-21 时</strong></div>
-        </section>
-        <section class="analysis-history-card" aria-labelledby="analysisHistoryTitle">
-          <div class="section-heading"><h2 id="analysisHistoryTitle">哭声分析历史</h2><span class="caption">本机保存</span></div>
-          <div id="analysisHistory"></div>
-        </section>
-        <div class="filter-row" id="timelineFilters">
-          <button class="active" type="button" data-filter="all">全部</button>
-          <button type="button" data-filter="cry">哭声</button>
-          <button type="button" data-filter="soothing">反馈</button>
-          <button type="button" data-filter="automation">环境方案</button>
-          <button type="button" data-filter="safety">安全</button>
-          <button type="button" data-filter="feeding">喂养</button>
-          <button type="button" data-filter="sleep">睡眠</button>
+        <div class="timeline-segmented" role="tablist" aria-label="时间线内容">
+          <button class="active" id="timelineRecordTab" type="button" role="tab" aria-selected="true" aria-controls="timelineRecordPanel" data-timeline-segment="record">记录</button>
+          <button id="timelineInsightTab" type="button" role="tab" aria-selected="false" aria-controls="timelineInsightPanel" data-timeline-segment="insight">洞察</button>
         </div>
-        <div class="date-divider"><span>今天</span><small id="eventCountLabel">0 条记录</small></div>
-        <div class="full-timeline" id="fullTimeline"></div>
+
+        <div class="timeline-panel active" id="timelineRecordPanel" role="tabpanel" aria-labelledby="timelineRecordTab">
+          <section class="records-overview" aria-label="本周摘要">
+            <div><small>本周哭闹</small><strong>18 次</strong></div>
+            <div><small>反馈完整度</small><strong>83%</strong></div>
+            <div><small>常见时段</small><strong>18-21 时</strong></div>
+          </section>
+          <button class="timeline-insight-preview" type="button" data-timeline-segment="insight">
+            <span class="insight-preview-mark" aria-hidden="true">禾</span>
+            <span><small>本周洞察</small><strong>晚间更容易慢慢安静下来</strong><em>查看记录背后的节奏</em></span>
+            <i aria-hidden="true">›</i>
+          </button>
+          <section class="analysis-history-card" aria-labelledby="analysisHistoryTitle">
+            <div class="section-heading"><h2 id="analysisHistoryTitle">哭声分析历史</h2><span class="caption">本机保存</span></div>
+            <div id="analysisHistory"></div>
+          </section>
+          <div class="filter-row" id="timelineFilters">
+            <button class="active" type="button" data-filter="all">全部</button>
+            <button type="button" data-filter="cry">哭声</button>
+            <button type="button" data-filter="soothing">反馈</button>
+            <button type="button" data-filter="automation">环境方案</button>
+            <button type="button" data-filter="safety">安全</button>
+            <button type="button" data-filter="feeding">喂养</button>
+            <button type="button" data-filter="sleep">睡眠</button>
+          </div>
+          <div class="date-divider"><span>今天</span><small id="eventCountLabel">0 条记录</small></div>
+          <div class="full-timeline" id="fullTimeline"></div>
+        </div>
+
+        <div class="timeline-panel" id="timelineInsightPanel" role="tabpanel" aria-labelledby="timelineInsightTab" hidden>
+          <div class="insight-panel-head"><div><p class="section-label">近 7 天的照护记录</p><h2>禾禾的节奏</h2><p>不急着下结论，我们一起看看哪些变化值得温柔留意。</p></div><button class="small-button" id="periodButton" type="button">本周</button></div>
+          <section class="insight-lead">
+            <span class="insight-glyph" aria-hidden="true">禾</span>
+            <div><p class="section-label">本周小结</p><h2>晚间更容易安静下来</h2><p>在已反馈的演示记录里，提前调暗灯光并减少逗弄后，禾禾更容易慢慢平静。</p><button class="text-button" type="button" data-timeline-segment="record">看看相关记录</button></div>
+          </section>
+          <section class="insight-summary" aria-label="本周摘要">
+            <div><small>本周哭闹</small><strong>18<em>次</em></strong><span>比上周少 3 次</span></div>
+            <div><small>累计时长</small><strong>76<em>分钟</em></strong><span>平均 4.2 分钟</span></div>
+            <div><small>反馈完整</small><strong>15<em>次</em></strong><span>还有 3 次可补充</span></div>
+          </section>
+          <section class="chart-card" aria-labelledby="trendTitle">
+            <div class="section-heading"><div><p class="section-label">一周变化</p><h2 id="trendTitle">哭闹与睡眠</h2></div><div class="legend"><span><i></i>哭闹</span><span><i></i>睡眠</span></div></div>
+            <div class="combo-chart" id="comboChart"></div>
+            <p class="chart-note">两种变化同时出现不代表存在因果，只作为照护回看线索。</p>
+          </section>
+          <section class="chart-card heat-card" aria-labelledby="heatTitle">
+            <div class="section-heading"><div><p class="section-label">一天里的分布</p><h2 id="heatTitle">什么时候更需要陪伴？</h2></div><span class="caption">18 次演示记录</span></div>
+            <div class="heatmap" id="heatmap"></div>
+            <div class="heat-labels"><span>0 时</span><span>6 时</span><span>12 时</span><span>18 时</span><span>24 时</span></div>
+            <p class="chart-note"><b>傍晚 18 至 21 时记录较多</b>，可以稍早一点为禾禾降低环境刺激。</p>
+          </section>
+          <section class="chart-card soothing-card" aria-labelledby="soothingTitle">
+            <div class="section-heading"><div><p class="section-label">已经收到的反馈</p><h2 id="soothingTitle">哪些陪伴方式更合拍？</h2></div></div>
+            <div class="soothing-list">
+              <div><span class="rank">1</span><p><b>抱哄并降低刺激</b><small>使用 7 次，明显缓解 5 次</small></p><strong>较常有效</strong></div>
+              <div><span class="rank">2</span><p><b>喂养</b><small>使用 5 次，明显缓解 3 次</small></p><strong>有时有效</strong></div>
+              <div><span class="rank">3</span><p><b>拍嗝或调整姿势</b><small>使用 4 次，明显缓解 2 次</small></p><strong>可继续观察</strong></div>
+            </div>
+          </section>
+          <button class="report-button" id="reportButton" type="button"><span aria-hidden="true">记</span><p><b>整理本周照护小结</b><small>先预览，再决定是否分享给家人</small></p><i>›</i></button>
+        </div>
       </section>
 
       <section class="view" id="devicesView" aria-labelledby="devicesTitle">
@@ -191,37 +243,31 @@
         <section class="future-adapters"><h2>未来适配接口</h2><p id="futureAdapterList"></p></section>
       </section>
 
-      <section class="view insights-view" id="insightsView" aria-labelledby="insightsTitle">
-        <div class="page-heading"><div><p class="section-label">近 7 天的照护记录</p><h1 id="insightsTitle">禾禾的节奏</h1><p>不急着下结论，我们一起看看哪些变化值得温柔留意。</p></div><button class="small-button" id="periodButton" type="button">本周</button></div>
-        <section class="insight-lead">
-          <span class="insight-glyph" aria-hidden="true">禾</span>
-          <div><p class="section-label">本周小结</p><h2>晚间更容易安静下来</h2><p>在已反馈的演示记录里，提前调暗灯光并减少逗弄后，禾禾更容易慢慢平静。</p><button class="text-button" type="button" data-nav="timeline">看看相关记录</button></div>
-        </section>
-        <section class="insight-summary" aria-label="本周摘要">
-          <div><small>本周哭闹</small><strong>18<em>次</em></strong><span>比上周少 3 次</span></div>
-          <div><small>累计时长</small><strong>76<em>分钟</em></strong><span>平均 4.2 分钟</span></div>
-          <div><small>反馈完整</small><strong>15<em>次</em></strong><span>还有 3 次可补充</span></div>
-        </section>
-        <section class="chart-card" aria-labelledby="trendTitle">
-          <div class="section-heading"><div><p class="section-label">一周变化</p><h2 id="trendTitle">哭闹与睡眠</h2></div><div class="legend"><span><i></i>哭闹</span><span><i></i>睡眠</span></div></div>
-          <div class="combo-chart" id="comboChart"></div>
-          <p class="chart-note">两种变化同时出现不代表存在因果，只作为照护回看线索。</p>
-        </section>
-        <section class="chart-card heat-card" aria-labelledby="heatTitle">
-          <div class="section-heading"><div><p class="section-label">一天里的分布</p><h2 id="heatTitle">什么时候更需要陪伴？</h2></div><span class="caption">18 次演示记录</span></div>
-          <div class="heatmap" id="heatmap"></div>
-          <div class="heat-labels"><span>0 时</span><span>6 时</span><span>12 时</span><span>18 时</span><span>24 时</span></div>
-          <p class="chart-note"><b>傍晚 18 至 21 时记录较多</b>，可以稍早一点为禾禾降低环境刺激。</p>
-        </section>
-        <section class="chart-card soothing-card" aria-labelledby="soothingTitle">
-          <div class="section-heading"><div><p class="section-label">已经收到的反馈</p><h2 id="soothingTitle">哪些陪伴方式更合拍？</h2></div></div>
-          <div class="soothing-list">
-            <div><span class="rank">1</span><p><b>抱哄并降低刺激</b><small>使用 7 次，明显缓解 5 次</small></p><strong>较常有效</strong></div>
-            <div><span class="rank">2</span><p><b>喂养</b><small>使用 5 次，明显缓解 3 次</small></p><strong>有时有效</strong></div>
-            <div><span class="rank">3</span><p><b>拍嗝或调整姿势</b><small>使用 4 次，明显缓解 2 次</small></p><strong>可继续观察</strong></div>
-          </div>
-        </section>
-        <button class="report-button" id="reportButton" type="button"><span aria-hidden="true">记</span><p><b>整理本周照护小结</b><small>先预览，再决定是否分享给家人</small></p><i>›</i></button>
+      <section class="view community-view" id="communityView" aria-labelledby="communityTitle">
+        <div class="page-heading community-heading"><div><p class="section-label">同阶段家庭的温柔片刻</p><h1 id="communityTitle">社区</h1><p>这里分享的是照护经验和成长瞬间，不替代 CrySense 的安全判断。</p></div><button class="round-add" id="communityAddButton" type="button" aria-label="记录宝宝">+</button></div>
+
+        <button class="moment-callout" id="openMomentComposer" type="button">
+          <span class="moment-callout-art" aria-hidden="true"><img src="assets/crysense-baby-listening.webp" alt="" width="512" height="768" /></span>
+          <span><small>宝宝小记</small><strong>把今天的小瞬间收好</strong><em>默认仅自己可见，需要时再分享给家人或社区</em></span>
+          <i aria-hidden="true">›</i>
+        </button>
+
+        <button class="ai-studio-card" id="openAIStudio" type="button">
+          <span class="ai-studio-symbol" aria-hidden="true">AI</span>
+          <span><small>演示功能，不会上传照片</small><strong>把照片变成小作品</strong><em>大头贴、绘本小主角、温柔漫画格</em></span>
+          <i aria-hidden="true">›</i>
+        </button>
+
+        <div class="community-section-head"><div><h2>同月龄片刻</h2><p>看看相近阶段的家庭，今天正在经历什么。</p></div></div>
+        <div class="community-filters" id="communityFilters" aria-label="社区内容筛选">
+          <button class="active" type="button" data-community-filter="all">推荐</button>
+          <button type="button" data-community-filter="same-age">同月龄</button>
+          <button type="button" data-community-filter="sleep">睡眠</button>
+          <button type="button" data-community-filter="feeding">喂养</button>
+          <button type="button" data-community-filter="growth">成长瞬间</button>
+        </div>
+        <div class="community-feed" id="communityFeed"></div>
+        <aside class="community-safety-note"><span aria-hidden="true">安</span><p><b>经验不是诊断</b>每个宝宝的情况不同。出现危险体征时，请先使用安全检查或联系专业医疗人员。</p></aside>
       </section>
 
       <section class="view" id="profileView" aria-labelledby="profileTitle">
@@ -367,7 +413,7 @@
       <button class="active" data-nav="home" type="button"><span aria-hidden="true">⌂</span><small>首页</small></button>
       <button data-nav="timeline" type="button"><span aria-hidden="true">≡</span><small>时间线</small></button>
       <button data-nav="devices" type="button"><span aria-hidden="true">◇</span><small>设备</small></button>
-      <button data-nav="insights" type="button"><span aria-hidden="true">⌁</span><small>洞察</small></button>
+      <button data-nav="community" type="button"><span aria-hidden="true">⌁</span><small>社区</small></button>
       <button data-nav="profile" type="button"><span aria-hidden="true">○</span><small>我的</small></button>
     </nav>
   </div>
@@ -422,6 +468,52 @@
       <label class="automation-toggle"><span><b>可用于照护方案</b><small>关闭后，CrySense 不会把这台设备加入新方案</small></span><input id="deviceAutomationToggle" type="checkbox" /></label>
       <button class="primary-button" id="testDeviceConnectionButton" type="button">测试连接</button>
       <p class="consent-note">这里仅管理连接与方案权限，不提供脱离哭声结果的任意控制。</p>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="momentModal" role="dialog" aria-modal="true" aria-labelledby="momentModalTitle">
+    <div class="bottom-sheet moment-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><div><p class="section-label">宝宝小记</p><h2 id="momentModalTitle">今天想记住什么？</h2></div><button class="close-button" id="closeMomentModal" type="button" aria-label="关闭">×</button></div>
+      <p class="sheet-helper">先留给自己也很好。只有你主动选择，内容才会分享给家人或社区。</p>
+      <form id="momentForm">
+        <label class="field"><span>小记内容</span><textarea id="momentText" rows="4" maxlength="160" placeholder="例如：今天第一次认真看着窗外的小树。" required></textarea><small class="field-helper"><span id="momentCharacterCount">0</span> / 160</small></label>
+        <div class="mock-photo-picker" id="mockPhotoPicker"><span aria-hidden="true">照</span><p><b>添加一张照片</b><small>原型只记录演示状态，不会读取或上传真实照片</small></p><button class="small-button" id="addMockPhotoButton" type="button">添加演示照片</button></div>
+        <fieldset class="visibility-field"><legend>谁可以看见？</legend><div class="segmented visibility-segmented"><label><input type="radio" name="momentVisibility" value="private" checked /><span>仅自己</span></label><label><input type="radio" name="momentVisibility" value="family" /><span>家人</span></label><label><input type="radio" name="momentVisibility" value="community" /><span>社区</span></label></div><p>社区公开不会默认选中，发布前还会再次确认。</p></fieldset>
+        <label class="timeline-link-toggle"><span><b>同时放入家庭时间线</b><small>只保存成长小记，不会成为哭声模型依据</small></span><input id="linkMomentToTimeline" type="checkbox" /></label>
+        <button class="primary-button" type="submit">保存这一个小瞬间</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="aiArtModal" role="dialog" aria-modal="true" aria-labelledby="aiArtTitle">
+    <div class="bottom-sheet ai-art-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><div><p class="section-label">AI 艺术照相馆</p><h2 id="aiArtTitle">把照片画成小作品</h2></div><button class="close-button" id="closeAIArtModal" type="button" aria-label="关闭">×</button></div>
+      <div class="ai-mock-banner"><span aria-hidden="true">i</span><p><b>当前是安全演示</b><small>只使用预制示例图，不会读取、上传或训练真实宝宝照片。</small></p></div>
+      <button class="ai-source-card" id="selectDemoPhotoButton" type="button"><span class="ai-source-thumb"><img src="assets/crysense-baby-listening.webp" alt="演示用卡通宝宝素材" width="512" height="768" /></span><span><b id="aiSourceTitle">选择演示照片</b><small id="aiSourceDescription">轻触后即可体验完整创作流程</small></span><i aria-hidden="true">›</i></button>
+      <fieldset class="ai-style-field"><legend>选择一种风格</legend><div class="ai-style-grid" id="aiStyleGrid">
+        <button class="active" type="button" data-ai-style="sticker"><span class="style-swatch sticker"></span><b>宝宝大头贴</b><small>柔和纯色背景</small></button>
+        <button type="button" data-ai-style="pictureBook"><span class="style-swatch picture-book"></span><b>绘本小主角</b><small>轻柔蜡笔质感</small></button>
+        <button type="button" data-ai-style="comic"><span class="style-swatch comic"></span><b>温柔漫画格</b><small>单格日常片刻</small></button>
+      </div></fieldset>
+      <div class="ai-generation-state empty" id="aiGenerationState" role="status" aria-live="polite"><p>选好演示照片和风格后，就可以开始创作。</p></div>
+      <button class="primary-button" id="startAIGenerationButton" type="button" disabled>开始创作</button>
+      <button class="secondary-button hidden" id="saveAIArtworkButton" type="button">私密保存这张作品</button>
+      <button class="secondary-button hidden" id="retryAIArtworkButton" type="button">换一种效果</button>
+      <button class="text-button hidden" id="cancelAIGenerationButton" type="button">取消创作</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="communityPublishModal" role="dialog" aria-modal="true" aria-labelledby="communityPublishTitle">
+    <div class="bottom-sheet confirmation-sheet community-publish-sheet">
+      <div class="sheet-handle"></div>
+      <div class="confirmation-icon" aria-hidden="true">家</div>
+      <p class="section-label">公开前确认</p><h2 id="communityPublishTitle">要分享给同阶段家庭吗？</h2>
+      <p>公开内容可能被陌生人看到。CrySense 不会展示宝宝的完整生日、位置或家庭信息。</p>
+      <div class="publish-preview" id="communityPublishPreview"></div>
+      <button class="primary-button" id="confirmCommunityPublishButton" type="button">确认分享到社区</button>
+      <button class="secondary-button" id="declineCommunityPublishButton" type="button">先私密保存</button>
     </div>
   </div>
 

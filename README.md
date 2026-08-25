@@ -21,8 +21,12 @@ python -m http.server 4173
 ## 已实现
 
 - Launch Screen、三页 Onboarding、Apple 登录主入口和邮箱次入口
-- 登录后的五栏 Tab Bar：`首页 / 时间线 / 设备 / 洞察 / 我的`
-- 首页保留快速记录、禾禾的一天和最近分析
+- 登录后的五栏 Tab Bar：`首页 / 时间线 / 设备 / 社区 / 我的`
+- 原“洞察”完整并入时间线，通过“记录 / 洞察”分段切换查看事件与规律
+- 首页保留快速记录、禾禾的一天和最近分析，并加入双列小卡、破形卡面与原创卡通婴儿主检测卡
+- 轻量社区 Mock：同月龄片刻、主题筛选、温暖回应、收藏与举报状态
+- 私密优先的“宝宝小记”，支持家庭可见、主动公开和可选写入家庭时间线
+- AI 艺术照相馆 Mock：宝宝大头贴、绘本小主角、温柔漫画格；不读取或上传真实照片
 - 五秒哭声采集倒计时与独立硬停止保护，结束后自动进入分析
 - 录音前危险体征问询，以及病理风险、异常哭声和低置信度安全分流
 - 高置信度且安全时生成可审阅的推荐环境方案
@@ -44,9 +48,11 @@ python -m http.server 4173
 - `src/recording.js`：可测试的五秒倒计时与自动完成逻辑
 - `src/smart-home.js`：`Device / Capability / SuggestedAction / AutomationPlan / UserConsent / ExecutionResult`
 - `src/analysis-store.js`：结构化分析、执行和反馈记录
+- `src/community.js`：`BabyMoment / CommunityPost / AIArtworkJob` 的本地 Mock、可见范围与状态生命周期
 - `app.js`：应用状态、页面流程、权限 Sheet、分析与设备交互
 - `styles.css`：iOS typography、spacing、radius、color、safe-area 等设计 token
 - `docs/ios-ui-guidelines.md`：本次移动端设计和交互验收基线
+- `docs/PRD-v3.1-timeline-community-visual-iteration.md`：时间线洞察、轻社区、宝宝小记和 AI 影像增量需求
 
 `MockSmartHomeAdapter` 实现了当前演示。`SmartHomeAdapter` 保留了 Matter、Apple Home / HomeKit、Home Assistant、小米 IoT 和厂商 SDK 的适配边界；本版本未连接任何真实平台。
 
