@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { CRY_REASONS, SAFETY_STATUS } from "../src/constants.js";
 import {
+  DEVICE_STATUS,
   MockSmartHomeAdapter,
   PLAN_STATUS,
   UserConsent,
@@ -28,6 +29,21 @@ test("safe high-confidence sleepy result creates a reason-linked plan", () => {
   assert.equal(plan.status, PLAN_STATUS.AWAITING_CONSENT);
   assert.ok(plan.actions.some(action => action.capabilityId === "crib.rocking"));
   assert.ok(plan.actions.some(action => action.capabilityId === "light.scene"));
+  assert.ok(plan.actions.some(action => action.capabilityId === "climate.temperature"));
+});
+
+test("plan keeps showing suggested states when devices are already optimal", () => {
+  const devices = createMockDevices();
+  Object.assign(devices.find(device => device.id === "smart-crib").state, { rocking: true, intensity: "low" });
+  Object.assign(devices.find(device => device.id === "nursery-light").state, { on: true, brightness: 20, colorTemperature: 2700 });
+  Object.assign(devices.find(device => device.id === "nursery-climate").state, { currentTemperature: 24 });
+  Object.assign(devices.find(device => device.id === "white-noise").state, { on: true, volume: 18 });
+  const plan = buildAutomationPlan(safeAnalysis({ context: { temperature: 24, humidity: 46 } }), devices);
+
+  assert.equal(plan.status, PLAN_STATUS.AWAITING_CONSENT);
+  assert.ok(plan.actions.length >= 4);
+  assert.ok(plan.actions.every(action => action.alreadyOptimal));
+  assert.ok(plan.actions.every(action => action.enabled === false));
 });
 
 test("pathological, abnormal, danger-sign and low-confidence results block automation", () => {
@@ -91,6 +107,7 @@ test("single command failure is isolated and produces partial failure", async ()
 
 test("offline device failure is isolated while remaining devices execute", async () => {
   const adapter = new MockSmartHomeAdapter();
+  adapter.listDevices().find(device => device.id === "nursery-climate").status = DEVICE_STATUS.OFFLINE;
   const plan = buildAutomationPlan(safeAnalysis(), adapter.listDevices());
   const offlineAction = plan.actions.find(action => action.deviceStatus === "offline");
   const availableAction = plan.actions.find(action => action.enabled);
@@ -112,9 +129,9 @@ test("hunger never recommends crib rocking", () => {
   assert.ok(plan.actions.some(action => action.capabilityId === "light.scene"));
 });
 
-test("discomfort only creates climate action when sensor context supports it", () => {
+test("discomfort always explains the environment plan and only enables supported changes", () => {
   const coolRoom = buildAutomationPlan(safeAnalysis({ cryReason: CRY_REASONS.DISCOMFORT, context: { temperature: 23.5, humidity: 46 } }), createMockDevices());
   const hotRoom = buildAutomationPlan(safeAnalysis({ cryReason: CRY_REASONS.DISCOMFORT, context: { temperature: 26.2, humidity: 46 } }), createMockDevices());
-  assert.equal(coolRoom.actions.length, 0);
-  assert.ok(hotRoom.actions.some(action => action.capabilityId === "climate.temperature"));
+  assert.ok(coolRoom.actions.some(action => action.capabilityId === "climate.temperature" && action.alreadyOptimal));
+  assert.ok(hotRoom.actions.some(action => action.capabilityId === "climate.temperature" && action.enabled));
 });

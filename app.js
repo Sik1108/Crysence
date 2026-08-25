@@ -103,7 +103,8 @@ const state = {
   observationSeconds: 600,
   onboardingPage: 0,
   permissionRequest: null,
-  retryActionIds: []
+  retryActionIds: [],
+  activeDeviceId: null
 };
 
 state.countdown = new RecordingCountdown({
@@ -111,13 +112,14 @@ state.countdown = new RecordingCountdown({
     state.remaining = remaining;
     $("#timerValue").textContent = String(remaining);
   },
-  onComplete: () => finishRecording()
+  onComplete: () => finishRecording({ automatic: true })
 });
 
 const views = {
   home: $("#homeView"),
-  records: $("#recordsView"),
+  timeline: $("#timelineView"),
   devices: $("#devicesView"),
+  insights: $("#insightsView"),
   profile: $("#profileView"),
   listen: $("#listenView")
 };
@@ -178,11 +180,12 @@ function navigate(name) {
   $$(".bottom-nav [data-nav]").forEach(button => button.classList.toggle("active", button.dataset.nav === name));
   $("#appShell").classList.toggle("flow-active", name === "listen");
   window.scrollTo({ top: 0, behavior: "smooth" });
-  if (name === "records") {
+  if (name === "timeline") {
     renderTimeline();
     renderAnalysisHistory();
   }
   if (name === "devices") renderDevices();
+  if (name === "insights") renderInsights();
   if (name === "home") renderHome();
 }
 
@@ -242,6 +245,12 @@ function renderHome() {
     $("#latestReason").textContent = labels[analyses[0].cryReason] || "未分类";
     $("#latestAnalysisTime").textContent = relativeTime(analyses[0].timestamp);
   }
+  $("#todayTimeline").innerHTML = todayEvents.slice(0, 4).map(event => `
+    <article class="mini-event">
+      ${iconMarkup(event.type)}
+      <div><b>${escapeHTML(event.title)}</b><small>${escapeHTML(event.detail)}</small></div>
+      <time>${formatTime(event.at)}</time>
+    </article>`).join("") || `<div class="empty-state compact"><p>今天还没有记录，第一条从轻轻点一下开始。</p></div>`;
   renderHomeSmartCard();
 }
 
@@ -350,8 +359,7 @@ function submitLog(event) {
 function resetSafetyFlow() {
   state.countdown.stop();
   cancelAnimationFrame(state.animationId);
-  state.stream?.getTracks().forEach(track => track.stop());
-  state.audioContext?.close?.();
+  if (state.recording || state.stream || state.recorder) stopMediaCapture();
   state.recording = false;
   state.safetyAnswers = {};
   state.safetyResult = null;
@@ -496,13 +504,14 @@ function saveBlockedAnalysis(kind, reasons) {
 function resetRecorder() {
   state.countdown.stop();
   cancelAnimationFrame(state.animationId);
-  if (state.recording) state.stream?.getTracks().forEach(track => track.stop());
+  if (state.recording || state.stream || state.recorder) stopMediaCapture();
   state.recording = false;
   state.remaining = RECORDING_DURATION_SECONDS;
   state.levels = [];
   $("#timerValue").textContent = String(RECORDING_DURATION_SECONDS);
   $("#recordStatus").textContent = `轻触按钮开始 ${RECORDING_DURATION_SECONDS} 秒采集`;
   $("#recordButton").disabled = false;
+  $("#recordButton").setAttribute("aria-label", "开始 5 秒录音");
   $("#recordButton").classList.remove("recording");
   $(".demo-actions").classList.remove("hidden");
   updateQuality("", "等待开始");
@@ -548,7 +557,10 @@ function requestAppPermission(kind, onGranted) {
 }
 
 async function toggleRecording() {
-  if (state.recording) return finishRecording();
+  if (state.recording) {
+    showToast("正在听禾禾的声音，5 秒后会自动完成");
+    return;
+  }
   requestAppPermission("microphone", beginRecording);
 }
 
@@ -569,6 +581,8 @@ async function beginRecording() {
     state.recording = true;
     state.levels = [];
     $("#recordButton").classList.add("recording");
+    $("#recordButton").disabled = true;
+    $("#recordButton").setAttribute("aria-label", "录音中，将在 5 秒后自动完成");
     $(".demo-actions").classList.add("hidden");
     $("#recordStatus").textContent = "正在筛选有效哭声";
     updateQuality("good", "正在检测声音");
@@ -607,15 +621,44 @@ function visualizeWave() {
   draw();
 }
 
-function finishRecording() {
+function stopMediaCapture() {
+  try {
+    if (state.recorder?.state && state.recorder.state !== "inactive") state.recorder.stop();
+  } catch {
+    // A stopped track may already have closed MediaRecorder. Analysis should still continue.
+  }
+  state.stream?.getTracks().forEach(track => track.stop());
+  state.audioContext?.close?.();
+  state.recorder = null;
+  state.stream = null;
+  state.audioContext = null;
+}
+
+function renderInsights() {
+  const combo = $("#comboChart");
+  const heatmap = $("#heatmap");
+  if (!combo || !heatmap) return;
+  const days = ["一", "二", "三", "四", "五", "六", "日"];
+  const cries = [3, 2, 2, 4, 3, 2, 2];
+  const sleep = [72, 78, 82, 65, 74, 84, 80];
+  combo.innerHTML = days.map((day, index) => `
+    <div class="combo-day" aria-label="周${day}，哭闹 ${cries[index]} 次，睡眠指数 ${sleep[index]}">
+      <span class="sleep-bar" style="height:${sleep[index]}%"></span>
+      <i class="cry-mark" style="bottom:${Math.min(88, cries[index] * 18)}%"></i>
+      <small>${day}</small>
+    </div>`).join("");
+  const intensity = [0,0,0,0,1,1,0,0,1,1,0,0,0,1,0,1,1,2,3,3,2,1,0,0];
+  heatmap.innerHTML = intensity.map((level, hour) => `<span class="heat-${level}" title="${hour} 时，${level ? "有哭闹记录" : "暂无记录"}"></span>`).join("");
+}
+
+function finishRecording({ automatic = false } = {}) {
   if (!state.recording) return;
   state.recording = false;
   state.countdown.stop();
   cancelAnimationFrame(state.animationId);
-  if (state.recorder?.state !== "inactive") state.recorder?.stop();
-  state.stream?.getTracks().forEach(track => track.stop());
-  state.audioContext?.close?.();
+  stopMediaCapture();
   $("#recordButton").classList.remove("recording");
+  $("#recordStatus").textContent = automatic ? "5 秒声音已听完，正在理解禾禾的需要" : "声音已采集，正在分析";
   runInference("normal", false);
 }
 
@@ -623,8 +666,7 @@ function runInference(mode = "normal", demo = true) {
   state.countdown.stop();
   if (state.recording) {
     state.recording = false;
-    if (state.recorder?.state !== "inactive") state.recorder?.stop();
-    state.stream?.getTracks().forEach(track => track.stop());
+    stopMediaCapture();
   }
   $("#recordButton").disabled = true;
   $("#recordStatus").textContent = "正在分析声音、状态与个人记录";
@@ -749,13 +791,18 @@ function renderAutomationPlan(plan) {
   $("#automationPlanStatus").className = "status-badge pending";
   $("#automationActionList").innerHTML = plan.actions.map(action => {
     const device = smartHomeAdapter.listDevices().find(item => item.id === action.deviceId);
-    return `<label class="plan-action ${action.enabled ? "" : "unavailable"}">
+    const stateLabel = action.alreadyOptimal
+      ? "现在已经很合适，保持即可"
+      : device?.automationEnabled === false
+        ? "已关闭方案权限"
+        : deviceStatusLabel(action.deviceStatus);
+    return `<label class="plan-action ${action.enabled ? "" : action.alreadyOptimal ? "already-optimal" : "unavailable"}">
       <input type="checkbox" data-plan-action value="${escapeHTML(action.id)}" ${action.enabled ? "checked" : "disabled"} />
       <span class="plan-check" aria-hidden="true"></span>
-      <span class="plan-device"><b>${escapeHTML(device?.name || action.deviceId)}</b><small>${escapeHTML(action.label)}，${escapeHTML(action.detail)}</small><em>${escapeHTML(deviceStatusLabel(action.deviceStatus))}</em></span>
+      <span class="plan-device"><b>${escapeHTML(device?.name || action.deviceId)}</b><small>${escapeHTML(action.label)}，${escapeHTML(action.detail)}</small><em>${escapeHTML(stateLabel)}</em></span>
     </label>`;
   }).join("");
-  const unavailable = plan.actions.some(action => !action.enabled);
+  const unavailable = plan.actions.some(action => action.requiresExecution && !action.enabled && !action.alreadyOptimal);
   $("#offlineDecision").classList.toggle("hidden", !unavailable);
   $("#executionStatus").classList.add("hidden");
   $("#allowExecutionButton").classList.remove("hidden");
@@ -771,7 +818,7 @@ function selectedActionIds() {
 function updatePlanSelection() {
   const count = selectedActionIds().length;
   $("#allowExecutionButton").disabled = count === 0;
-  $("#allowExecutionButton").textContent = count ? `允许执行 ${count} 项` : "请至少保留一项";
+  $("#allowExecutionButton").textContent = count ? `允许执行 ${count} 项` : "当前环境无需调节";
 }
 
 function openAutomationConfirmation(actionIds = selectedActionIds()) {
@@ -862,6 +909,7 @@ function deviceStateSummary(device) {
   if (device.category === "climate") return `当前 ${device.state.currentTemperature}°C，目标 ${device.state.targetTemperature}°C`;
   if (device.category === "sensor") return `${device.state.temperature}°C，湿度 ${device.state.humidity}% RH`;
   if (device.category === "audio") return device.state.on ? `播放中，音量 ${device.state.volume}%` : "当前关闭";
+  if (device.category === "humidifier") return `${device.state.on ? "已开启" : "当前关闭"}，湿度 ${device.state.currentHumidity}% RH`;
   return "状态已同步";
 }
 
@@ -869,17 +917,46 @@ function renderDevices() {
   const devices = smartHomeAdapter.listDevices();
   $("#deviceCountLabel").textContent = `${devices.length} 台`;
   $("#deviceList").innerHTML = devices.map(device => `
-    <article class="device-row">
+    <button class="device-row" type="button" data-device-id="${escapeHTML(device.id)}" aria-label="查看${escapeHTML(device.name)}详情">
       <span class="device-icon">${escapeHTML(device.name.slice(0, 1))}</span>
-      <div><b>${escapeHTML(device.name)}</b><small>${escapeHTML(deviceStateSummary(device))}</small><em>${escapeHTML(device.capabilities.map(item => item.id).join("，"))}</em></div>
-      <span class="device-status ${escapeHTML(device.status)}">${escapeHTML(deviceStatusLabel(device.status))}</span>
-    </article>`).join("");
+      <div><b>${escapeHTML(device.name)}</b><small>${escapeHTML(deviceStateSummary(device))}</small><em>${device.automationEnabled ? "可加入哭因方案" : "已暂停加入方案"}</em></div>
+      <span class="device-status ${escapeHTML(device.status)}">${escapeHTML(deviceStatusLabel(device.status))}<i aria-hidden="true">›</i></span>
+    </button>`).join("");
+  $$('[data-device-id]').forEach(button => button.addEventListener("click", () => openDeviceDetail(button.dataset.deviceId)));
   $("#futureAdapterList").textContent = FUTURE_SMART_HOME_ADAPTERS.join(" / ");
   const granted = permissions.home === "granted";
-  $("#homePermissionTitle").textContent = granted ? "家庭设备权限已允许" : permissions.home === "denied" ? "家庭设备权限未允许" : "家庭设备权限待确认";
-  $("#homePermissionDescription").textContent = granted ? "仅在确认具体方案后发送命令。" : "连接设备时才会请求权限。";
-  $("#connectHomeButton").textContent = granted ? "已连接" : "连接家庭设备";
-  $("#connectHomeButton").disabled = granted;
+  $("#homePermissionTitle").textContent = granted ? "模拟家庭已连接" : permissions.home === "denied" ? "模拟设备已显示，方案联动未允许" : "6 台模拟设备已准备好";
+  $("#homePermissionDescription").textContent = granted ? "可以查看状态；每一次执行仍会单独征得你的同意。" : "查看设备不需要权限，真正加入方案时再由你决定。";
+  $("#connectHomeButton").textContent = granted ? "刷新状态" : "允许方案联动";
+  $("#connectHomeButton").disabled = false;
+}
+
+function openDeviceDetail(deviceId) {
+  state.activeDeviceId = deviceId;
+  renderDeviceDetail();
+  openModal($("#deviceDetailModal"));
+}
+
+function renderDeviceDetail() {
+  const device = smartHomeAdapter.listDevices().find(item => item.id === state.activeDeviceId);
+  if (!device) return closeModal($("#deviceDetailModal"));
+  $("#deviceDetailTitle").textContent = device.name;
+  $("#deviceDetailStatus").innerHTML = `<span class="device-icon">${escapeHTML(device.name.slice(0, 1))}</span><p><b>${escapeHTML(deviceStatusLabel(device.status))}</b><small>模拟设备状态已同步</small></p>`;
+  $("#deviceDetailState").innerHTML = `<small>现在的状态</small><strong>${escapeHTML(deviceStateSummary(device))}</strong><span>${escapeHTML(device.capabilities.map(item => item.type).join("，"))}</span>`;
+  $("#deviceAutomationToggle").checked = device.automationEnabled;
+}
+
+async function testDeviceConnection() {
+  const device = smartHomeAdapter.listDevices().find(item => item.id === state.activeDeviceId);
+  if (!device) return;
+  const button = $("#testDeviceConnectionButton");
+  button.disabled = true;
+  button.textContent = "正在轻轻确认连接";
+  await new Promise(resolve => setTimeout(resolve, 500));
+  button.disabled = false;
+  button.textContent = "再次测试连接";
+  $("#deviceDetailStatus small").textContent = "刚刚确认，连接状态良好";
+  showToast(`${device.name}连接正常，等需要时再为禾禾帮忙`);
 }
 
 function startObservation() {
@@ -930,6 +1007,7 @@ function renderEverything() {
   renderTimeline();
   renderAnalysisHistory();
   renderDevices();
+  renderInsights();
   drawIdleWave();
   $("#notificationPermissionText").textContent = permissions.notifications === "granted" ? "通知权限已允许" : "按需申请通知权限";
 }
@@ -972,12 +1050,12 @@ $("#newAnalysisButton").addEventListener("click", resetRecorder);
 $("#safetyPrimaryButton").addEventListener("click", () => {
   if (state.safetyResult?.kind === "emergency") return showToast("如在中国大陆，请立即拨打 120 或前往急诊");
   navigate("home");
-  showToast("安全分流记录已保存在记录页");
+  showToast("安全分流记录已放进时间线");
 });
 $("#safetySummaryButton").addEventListener("click", () => showToast("摘要仅预览，不会自动分享"));
 $("#startObserveButton").addEventListener("click", startObservation);
 $("#closeObserve").addEventListener("click", () => closeModal($("#observeModal")));
-$("#finishLaterButton").addEventListener("click", () => { closeModal($("#observeModal")); showToast("可稍后从记录页补充反馈"); });
+$("#finishLaterButton").addEventListener("click", () => { closeModal($("#observeModal")); showToast("不着急，稍后可以从时间线补充反馈"); });
 $$('[data-outcome]').forEach(button => button.addEventListener("click", () => saveOutcome(button.dataset.outcome)));
 $$('[data-analysis-feedback]').forEach(button => button.addEventListener("click", () => saveAnalysisFeedback(button.dataset.analysisFeedback, button)));
 $("#allowExecutionButton").addEventListener("click", () => openAutomationConfirmation());
@@ -985,7 +1063,23 @@ $("#executeRemainingButton").addEventListener("click", () => openAutomationConfi
 $("#cancelEntirePlanButton").addEventListener("click", cancelEntirePlan);
 $("#confirmAutomationButton").addEventListener("click", executeAutomation);
 $("#declineAutomationButton").addEventListener("click", () => declineAutomation());
-$("#connectHomeButton").addEventListener("click", () => requestAppPermission("home", () => { renderDevices(); showToast("家庭设备已连接，执行仍需逐次确认"); }));
+$("#connectHomeButton").addEventListener("click", () => {
+  if (permissions.home === "granted") {
+    renderDevices();
+    return showToast("6 台模拟设备状态已更新，大家都在好好待命");
+  }
+  requestAppPermission("home", () => { renderDevices(); showToast("方案联动已允许，每次执行前仍会先问你"); });
+});
+$("#closeDeviceDetailButton").addEventListener("click", () => closeModal($("#deviceDetailModal")));
+$("#testDeviceConnectionButton").addEventListener("click", testDeviceConnection);
+$("#deviceAutomationToggle").addEventListener("change", event => {
+  const device = smartHomeAdapter.listDevices().find(item => item.id === state.activeDeviceId);
+  if (!device) return;
+  device.automationEnabled = event.currentTarget.checked;
+  renderDevices();
+  renderHomeSmartCard();
+  showToast(device.automationEnabled ? `${device.name}会在合适的哭因方案里待命` : `${device.name}已暂停加入新的照护方案`);
+});
 $("#notificationButton").addEventListener("click", () => requestAppPermission("notifications", () => { $("#notificationPermissionText").textContent = "通知权限已允许"; showToast("照护提醒已开启"); }));
 $("#notificationSettings").addEventListener("click", () => requestAppPermission("notifications", () => { $("#notificationPermissionText").textContent = "通知权限已允许"; showToast("照护提醒已开启"); }));
 $("#allowPermissionButton").addEventListener("click", () => {
@@ -1025,11 +1119,15 @@ const simpleToasts = {
   editProfileButton: "宝宝档案编辑将在下一迭代开放",
   knowledgeButton: "安全知识内容需完成专业审核后开放",
   privacyButton: "原始音频默认不上传，分析与训练将分别授权",
-  personalizationButton: "只学习照护偏好，不把设备行为用于医学诊断"
+  personalizationButton: "只学习照护偏好，不把设备行为用于医学诊断",
+  inviteButton: "家人邀请将在接入真实账户后开放",
+  exportButton: "照护摘要已准备好，原型不会自动分享",
+  reportButton: "本周照护小结已整理好，分享前会再次请你确认",
+  periodButton: "月度洞察将在积累更多记录后开放"
 };
 Object.entries(simpleToasts).forEach(([id, message]) => $(`#${id}`)?.addEventListener("click", () => showToast(message)));
 
-[$("#logModal"), $("#observeModal"), $("#automationConfirmModal"), $("#permissionModal")].forEach(modal => {
+[$("#logModal"), $("#observeModal"), $("#automationConfirmModal"), $("#permissionModal"), $("#deviceDetailModal")].forEach(modal => {
   modal.addEventListener("click", event => {
     if (event.target !== modal) return;
     if (modal === $("#automationConfirmModal")) declineAutomation("sheet_dismissed");

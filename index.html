@@ -95,9 +95,9 @@
 
         <button class="listen-hero" id="listenHero" type="button">
           <span class="hero-copy">
-            <small>宝宝在哭吗？</small>
+            <small>禾禾在叫你啦</small>
             <strong>开始哭声检测</strong>
-            <span>采集 5 秒后自动分析，仅作照护参考</span>
+            <span>轻触一次，我们会安静听 5 秒并自动给出结果</span>
           </span>
           <span class="five-second-badge"><b>5</b><small>秒</small></span>
         </button>
@@ -111,25 +111,39 @@
           <span class="home-device-row"><span>婴儿床在线</span><span>夜灯已连接</span></span>
         </button>
 
-        <section class="home-summary" aria-labelledby="homeSummaryTitle">
-          <div class="section-heading"><h2 id="homeSummaryTitle">今天</h2><button class="text-button" type="button" data-nav="records">查看记录</button></div>
+        <section class="quick-record-card" aria-labelledby="quickRecordTitle">
+          <div class="section-heading"><div><p class="section-label">随手记一下</p><h2 id="quickRecordTitle">刚刚发生了什么？</h2></div><span class="caption">一两步就好</span></div>
+          <p class="warm-helper">每一条小记录，都会让我们更懂禾禾今天的节奏。</p>
+          <div class="quick-actions" aria-label="快速记录">
+            <button type="button" data-log="feeding"><span>喂</span><small>喂养</small></button>
+            <button type="button" data-log="sleep"><span>睡</span><small>睡眠</small></button>
+            <button type="button" data-log="diaper"><span>尿</span><small>尿布</small></button>
+            <button type="button" data-log="soothing"><span>安</span><small>安抚</small></button>
+            <button type="button" data-log="temperature"><span>温</span><small>体温</small></button>
+            <button type="button" data-log="note"><span>记</span><small>备注</small></button>
+          </div>
+        </section>
+
+        <section class="home-summary day-summary" aria-labelledby="homeSummaryTitle">
+          <div class="section-heading"><div><p class="section-label">今天的片段</p><h2 id="homeSummaryTitle">禾禾的一天</h2></div><button class="text-button" type="button" data-nav="timeline">完整时间线</button></div>
           <div class="summary-grid">
             <div><small>哭声次数</small><strong id="cryCount">3</strong><span>次</span></div>
             <div><small>最近分析</small><strong id="latestReason">困倦</strong><span id="latestAnalysisTime">5 小时前</span></div>
             <div><small>安抚反馈</small><strong>3 / 5</strong><span>明显缓解</span></div>
           </div>
+          <div class="mini-timeline" id="todayTimeline"></div>
         </section>
 
         <section class="recent-card" aria-labelledby="recentTitle">
           <div class="section-heading"><h2 id="recentTitle">最近一次分析</h2><span class="status-badge safe">已完成反馈</span></div>
           <p>更可能是困倦，降低刺激并抱哄后明显缓解。</p>
-          <button class="row-link" type="button" data-nav="records">查看完整记录 <span>›</span></button>
+          <button class="row-link" type="button" data-nav="timeline">看看当时的完整记录 <span>›</span></button>
         </section>
       </section>
 
-      <section class="view" id="recordsView" aria-labelledby="recordsTitle">
+      <section class="view" id="timelineView" aria-labelledby="timelineTitle">
         <div class="page-heading">
-          <div><p class="section-label">家庭数据</p><h1 id="recordsTitle">记录</h1><p>查看哭声历史、照护反馈与环境方案执行结果。</p></div>
+          <div><p class="section-label">一家人的照护足迹</p><h1 id="timelineTitle">时间线</h1><p>禾禾今天经历了什么，谁陪在身边，都在这里慢慢连起来。</p></div>
           <button class="round-add" type="button" data-log="note" aria-label="新增记录">+</button>
         </div>
         <section class="records-overview" aria-label="本周摘要">
@@ -172,22 +186,68 @@
         <section class="future-adapters"><h2>未来适配接口</h2><p id="futureAdapterList"></p></section>
       </section>
 
+      <section class="view insights-view" id="insightsView" aria-labelledby="insightsTitle">
+        <div class="page-heading"><div><p class="section-label">近 7 天的照护记录</p><h1 id="insightsTitle">禾禾的节奏</h1><p>不急着下结论，我们一起看看哪些变化值得温柔留意。</p></div><button class="small-button" id="periodButton" type="button">本周</button></div>
+        <section class="insight-lead">
+          <span class="insight-glyph" aria-hidden="true">禾</span>
+          <div><p class="section-label">本周小结</p><h2>晚间更容易安静下来</h2><p>在已反馈的演示记录里，提前调暗灯光并减少逗弄后，禾禾更容易慢慢平静。</p><button class="text-button" type="button" data-nav="timeline">看看相关记录</button></div>
+        </section>
+        <section class="insight-summary" aria-label="本周摘要">
+          <div><small>本周哭闹</small><strong>18<em>次</em></strong><span>比上周少 3 次</span></div>
+          <div><small>累计时长</small><strong>76<em>分钟</em></strong><span>平均 4.2 分钟</span></div>
+          <div><small>反馈完整</small><strong>15<em>次</em></strong><span>还有 3 次可补充</span></div>
+        </section>
+        <section class="chart-card" aria-labelledby="trendTitle">
+          <div class="section-heading"><div><p class="section-label">一周变化</p><h2 id="trendTitle">哭闹与睡眠</h2></div><div class="legend"><span><i></i>哭闹</span><span><i></i>睡眠</span></div></div>
+          <div class="combo-chart" id="comboChart"></div>
+          <p class="chart-note">两种变化同时出现不代表存在因果，只作为照护回看线索。</p>
+        </section>
+        <section class="chart-card heat-card" aria-labelledby="heatTitle">
+          <div class="section-heading"><div><p class="section-label">一天里的分布</p><h2 id="heatTitle">什么时候更需要陪伴？</h2></div><span class="caption">18 次演示记录</span></div>
+          <div class="heatmap" id="heatmap"></div>
+          <div class="heat-labels"><span>0 时</span><span>6 时</span><span>12 时</span><span>18 时</span><span>24 时</span></div>
+          <p class="chart-note"><b>傍晚 18 至 21 时记录较多</b>，可以稍早一点为禾禾降低环境刺激。</p>
+        </section>
+        <section class="chart-card soothing-card" aria-labelledby="soothingTitle">
+          <div class="section-heading"><div><p class="section-label">已经收到的反馈</p><h2 id="soothingTitle">哪些陪伴方式更合拍？</h2></div></div>
+          <div class="soothing-list">
+            <div><span class="rank">1</span><p><b>抱哄并降低刺激</b><small>使用 7 次，明显缓解 5 次</small></p><strong>较常有效</strong></div>
+            <div><span class="rank">2</span><p><b>喂养</b><small>使用 5 次，明显缓解 3 次</small></p><strong>有时有效</strong></div>
+            <div><span class="rank">3</span><p><b>拍嗝或调整姿势</b><small>使用 4 次，明显缓解 2 次</small></p><strong>可继续观察</strong></div>
+          </div>
+        </section>
+        <button class="report-button" id="reportButton" type="button"><span aria-hidden="true">记</span><p><b>整理本周照护小结</b><small>先预览，再决定是否分享给家人</small></p><i>›</i></button>
+      </section>
+
       <section class="view" id="profileView" aria-labelledby="profileTitle">
-        <div class="page-heading"><div><p class="section-label">账户与偏好</p><h1 id="profileTitle">我的</h1><p>管理宝宝档案、隐私与个性化照护设置。</p></div></div>
-        <section class="profile-card">
-          <span class="large-avatar">禾</span><div><h2>禾禾</h2><p>4 个月 12 天</p><span>已积累 28 次有效反馈</span></div><button class="small-button" id="editProfileButton" type="button">编辑</button>
+        <div class="page-heading"><div><p class="section-label">我们的照护小家</p><h1 id="profileTitle">我的 CrySense</h1><p>照顾宝宝，也照顾每一位一起陪伴禾禾的人。</p></div></div>
+        <section class="profile-card profile-hero">
+          <span class="large-avatar">禾</span><div><p class="section-label">当前宝宝</p><h2>禾禾</h2><p>4 个月 12 天，2026 年 4 月 12 日出生</p><span>我们已经一起补充了 28 次有效反馈</span></div><button class="small-button" id="editProfileButton" type="button">编辑</button>
+        </section>
+        <section class="settings-card family-card" aria-labelledby="familyTitle">
+          <div class="section-heading"><div><p class="section-label">共同照护</p><h2 id="familyTitle">家人们</h2></div><button class="text-button" id="inviteButton" type="button">邀请家人</button></div>
+          <div class="member-row"><span class="member-avatar moss">爸</span><p><b>爸爸</b><small>管理员，正在照护中</small></p><em class="member-state">当前</em></div>
+          <div class="member-row"><span class="member-avatar lilac-bg">妈</span><p><b>妈妈</b><small>管理员，12:58 更新</small></p><i>›</i></div>
+          <div class="member-row"><span class="member-avatar sand-bg">奶</span><p><b>奶奶</b><small>临时照护者，昨天在线</small></p><i>›</i></div>
+        </section>
+        <section class="personalization-card">
+          <div class="personalization-top"><span aria-hidden="true">禾</span><div><p class="section-label">个性化进度</p><h2>正在一点点了解禾禾</h2></div><strong>28<small>次反馈</small></strong></div>
+          <div class="progress" aria-label="个性化进度"><i></i></div>
+          <p>这些反馈只用于调整照护建议顺序，不会被当作医学诊断依据。</p>
         </section>
         <section class="settings-card menu-card">
-          <button type="button" id="notificationSettings"><span>◇</span><p><b>通知与提醒</b><small id="notificationPermissionText">按需申请通知权限</small></p><i>›</i></button>
-          <button type="button" id="knowledgeButton"><span>?</span><p><b>知识与安全中心</b><small>危险体征与照护检查清单</small></p><i>›</i></button>
-          <button type="button" id="privacyButton"><span>□</span><p><b>数据与隐私</b><small>原始音频默认不上传</small></p><i>›</i></button>
-          <button type="button" id="personalizationButton"><span>◎</span><p><b>个性化照护策略</b><small>行为反馈不用于医学诊断</small></p><i>›</i></button>
+          <button type="button" id="knowledgeButton"><span>安</span><p><b>知识与安全中心</b><small>按月龄查看照护知识与危险信号</small></p><i>›</i></button>
+          <button type="button" id="personalizationButton"><span>禾</span><p><b>个性化照护策略</b><small>看看 CrySense 如何逐渐适应禾禾</small></p><i>›</i></button>
+          <button type="button" id="exportButton"><span>记</span><p><b>导出与分享</b><small>整理家庭摘要或就诊资料</small></p><i>›</i></button>
         </section>
-        <section class="settings-card menu-card secondary-menu">
-          <button type="button" id="revisitOnboardingButton"><span>↻</span><p><b>重新查看新手引导</b><small>了解安全边界与智能家居授权</small></p><i>›</i></button>
-          <button type="button" id="logoutButton"><span>○</span><p><b>退出原型账户</b><small>本机记录不会被删除</small></p><i>›</i></button>
+        <section class="settings-card menu-card secondary-menu" aria-labelledby="settingsTitle">
+          <div class="menu-section-title"><p class="section-label">账户与应用</p><h2 id="settingsTitle">设置</h2></div>
+          <button type="button" id="notificationSettings"><span>醒</span><p><b>提醒与夜间模式</b><small id="notificationPermissionText">按需申请通知权限</small></p><i>›</i></button>
+          <button type="button" id="privacyButton"><span>隐</span><p><b>数据与隐私</b><small>原始音频默认不上传</small></p><i>›</i></button>
+          <button type="button" id="revisitOnboardingButton"><span>新</span><p><b>重新查看新手引导</b><small>再了解一次安全边界与设备授权</small></p><i>›</i></button>
+          <button type="button" id="logoutButton"><span>退</span><p><b>退出原型账户</b><small>禾禾在本机的记录会被好好保留</small></p><i>›</i></button>
         </section>
-        <p class="medical-note">CrySense 仅提供照护辅助，不构成医疗诊断。</p>
+        <p class="medical-note">CrySense 陪你理解和记录，但不替代专业医疗判断。</p>
       </section>
 
       <section class="view listen-view" id="listenView" aria-labelledby="listenTitle">
@@ -300,8 +360,9 @@
 
     <nav class="bottom-nav" aria-label="主导航">
       <button class="active" data-nav="home" type="button"><span aria-hidden="true">⌂</span><small>首页</small></button>
-      <button data-nav="records" type="button"><span aria-hidden="true">≡</span><small>记录</small></button>
+      <button data-nav="timeline" type="button"><span aria-hidden="true">≡</span><small>时间线</small></button>
       <button data-nav="devices" type="button"><span aria-hidden="true">◇</span><small>设备</small></button>
+      <button data-nav="insights" type="button"><span aria-hidden="true">⌁</span><small>洞察</small></button>
       <button data-nav="profile" type="button"><span aria-hidden="true">○</span><small>我的</small></button>
     </nav>
   </div>
@@ -344,6 +405,18 @@
       <h2 id="permissionTitle">允许使用麦克风？</h2><p id="permissionDescription">仅在你开始检测时采集 5 秒声音。</p>
       <button class="primary-button" id="allowPermissionButton" type="button">允许</button>
       <button class="secondary-button" id="denyPermissionButton" type="button">暂不允许</button>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="deviceDetailModal" role="dialog" aria-modal="true" aria-labelledby="deviceDetailTitle">
+    <div class="bottom-sheet device-detail-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><div><p class="section-label">家庭设备</p><h2 id="deviceDetailTitle">设备详情</h2></div><button class="close-button" id="closeDeviceDetailButton" type="button" aria-label="关闭">×</button></div>
+      <div class="device-detail-status" id="deviceDetailStatus"></div>
+      <div class="device-detail-state" id="deviceDetailState"></div>
+      <label class="automation-toggle"><span><b>可用于照护方案</b><small>关闭后，CrySense 不会把这台设备加入新方案</small></span><input id="deviceAutomationToggle" type="checkbox" /></label>
+      <button class="primary-button" id="testDeviceConnectionButton" type="button">测试连接</button>
+      <p class="consent-note">这里仅管理连接与方案权限，不提供脱离哭声结果的任意控制。</p>
     </div>
   </div>
 

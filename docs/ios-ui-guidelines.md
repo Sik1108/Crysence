@@ -10,7 +10,7 @@
 - 视觉方向：接近原生 iOS 的克制层级，不采用缩小网页式 Dashboard，也不依靠装饰性渐变制造层次。
 - 页面原则：一屏一个清晰主任务，关键状态紧邻触发它的操作。
 
-Taste skill 调节值：`DESIGN_VARIANCE=4`、`MOTION_INTENSITY=3`、`VISUAL_DENSITY=4`。这意味着布局有适度识别度，动效只服务状态变化，信息密度保持适中。
+Taste skill 调节值：`DESIGN_VARIANCE=4`、`MOTION_INTENSITY=3`、`VISUAL_DENSITY=5`。这意味着布局有适度识别度，动效只服务状态变化，并容纳时间线和洞察所需的信息密度。
 
 ## Tokens
 
@@ -40,7 +40,7 @@ Taste skill 调节值：`DESIGN_VARIANCE=4`、`MOTION_INTENSITY=3`、`VISUAL_DEN
 
 - 内容始终考虑 `env(safe-area-inset-*)`，固定 Tab Bar 不遮挡页面末尾内容。
 - 一级页面可用 Large Title；录音、结果和设备详情等任务页使用普通导航标题。
-- 固定四栏 Tab Bar：`首页 / 记录 / 设备 / 我的`。
+- 固定五栏 Tab Bar：`首页 / 时间线 / 设备 / 洞察 / 我的`。哭声检测仍由首页主卡片进入。
 - Home 只保留一个高视觉权重主 CTA。智能家居卡片使用白色 surface、细边框和次级文字，不与检测入口竞争。
 - 卡片内部先给结论和状态，再给解释或次级操作。避免多层卡片嵌套。
 
@@ -50,6 +50,8 @@ Taste skill 调节值：`DESIGN_VARIANCE=4`、`MOTION_INTENSITY=3`、`VISUAL_DEN
 - 原生感确认使用 Bottom Sheet；轻量反馈使用 Toast 或 Banner；不得使用浏览器 alert / confirm。
 - 权限只在用户触发对应功能后解释并申请。
 - 设备执行确认必须列出具体动作；用户取消 Sheet 视为未授权。
+- 设备已经处于建议状态时仍展示方案，但标记为“保持即可”，不发送重复命令。
+- 设备中心只管理连接、测试和方案参与权限，不提供脱离哭声结果的任意控制。
 - 持续任务展示执行中状态，完成和部分失败给出明确文字及后续动作。
 - 动画主要使用 opacity 和 transform，遵循 `prefers-reduced-motion`。
 

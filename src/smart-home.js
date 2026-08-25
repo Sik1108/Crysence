@@ -30,7 +30,7 @@ export class Capability {
 }
 
 export class Device {
-  constructor({ id, name, category, status, room = "婴儿房", capabilities = [], state = {} }) {
+  constructor({ id, name, category, status, room = "婴儿房", capabilities = [], state = {}, automationEnabled = true }) {
     this.id = id;
     this.name = name;
     this.category = category;
@@ -40,6 +40,7 @@ export class Device {
       ? capability
       : new Capability(capability));
     this.state = { ...state };
+    this.automationEnabled = automationEnabled;
   }
 }
 
@@ -54,7 +55,9 @@ export class SuggestedAction {
     durationSeconds = null,
     reason,
     deviceStatus,
-    enabled = true
+    enabled = true,
+    alreadyOptimal = false,
+    requiresExecution = true
   }) {
     this.id = id;
     this.deviceId = deviceId;
@@ -66,6 +69,8 @@ export class SuggestedAction {
     this.reason = reason;
     this.deviceStatus = deviceStatus;
     this.enabled = enabled;
+    this.alreadyOptimal = alreadyOptimal;
+    this.requiresExecution = requiresExecution;
   }
 }
 
@@ -137,13 +142,41 @@ export function isAutomationAllowed(analysis) {
   );
 }
 
+function actionMatchesCurrentState(device, config) {
+  const target = config.parameters || {};
+  if (config.capabilityId === "crib.rocking") {
+    return device.state.rocking === target.on && device.state.intensity === target.intensity;
+  }
+  if (config.capabilityId === "light.scene") {
+    return device.state.on === target.on
+      && Math.abs((device.state.brightness ?? 0) - (target.brightness ?? 0)) <= 2
+      && Math.abs((device.state.colorTemperature ?? 0) - (target.colorTemperature ?? 0)) <= 100;
+  }
+  if (config.capabilityId === "climate.temperature") {
+    return Math.abs((device.state.currentTemperature ?? 0) - (target.targetTemperature ?? 0)) <= 0.5;
+  }
+  if (config.capabilityId === "humidifier.target") {
+    return device.state.on === target.on
+      && Math.abs((device.state.currentHumidity ?? 0) - (target.targetHumidity ?? 0)) <= 3;
+  }
+  if (config.capabilityId === "audio.white_noise") {
+    return device.state.on === target.on && Math.abs((device.state.volume ?? 0) - (target.volume ?? 0)) <= 2;
+  }
+  return false;
+}
+
 function actionFor(devicesById, config) {
   const device = devicesById.get(config.deviceId);
   if (!device) return null;
+  const requiresExecution = config.requiresExecution !== false;
+  const alreadyOptimal = config.alreadyOptimal ?? actionMatchesCurrentState(device, config);
+  const deviceAvailable = device.status === DEVICE_STATUS.ONLINE || device.status === DEVICE_STATUS.CONNECTED;
   return new SuggestedAction({
     ...config,
     deviceStatus: device.status,
-    enabled: device.status === DEVICE_STATUS.ONLINE || device.status === DEVICE_STATUS.CONNECTED
+    requiresExecution,
+    alreadyOptimal,
+    enabled: deviceAvailable && device.automationEnabled && requiresExecution && !alreadyOptimal
   });
 }
 
@@ -179,14 +212,12 @@ export function buildAutomationPlan(analysis, devices) {
       parameters: { on: true, brightness: 20, colorTemperature: 2700 },
       reason: "困倦时降低视觉刺激"
     });
-    if ((analysis.context?.temperature ?? 0) > 24.5) {
-      add({
-        id: `${planId}-climate`, deviceId: "nursery-climate", capabilityId: "climate.temperature",
-        label: "调节卧室温度", detail: `当前 ${analysis.context.temperature.toFixed(1)}°C，目标 24°C`,
-        parameters: { targetTemperature: 24, mode: "cool" },
-        reason: "传感器显示室温偏高"
-      });
-    }
+    add({
+      id: `${planId}-climate`, deviceId: "nursery-climate", capabilityId: "climate.temperature",
+      label: "准备舒适睡眠温度", detail: `当前 ${(analysis.context?.temperature ?? 24).toFixed(1)}°C，建议 24°C`,
+      parameters: { targetTemperature: 24, mode: (analysis.context?.temperature ?? 24) > 24 ? "cool" : "auto" },
+      reason: "困倦时保持稳定、不过热的睡眠环境"
+    });
     add({
       id: `${planId}-noise`, deviceId: "white-noise", capabilityId: "audio.white_noise",
       label: "播放白噪声", detail: "低音量，持续 10 分钟",
@@ -205,14 +236,18 @@ export function buildAutomationPlan(analysis, devices) {
   }
 
   if (analysis.cryReason === CRY_REASONS.DISCOMFORT) {
-    if ((analysis.context?.temperature ?? 0) > 25.5) {
-      add({
-        id: `${planId}-hot-room`, deviceId: "nursery-climate", capabilityId: "climate.temperature",
-        label: "降低卧室温度", detail: `当前 ${analysis.context.temperature.toFixed(1)}°C，目标 24°C`,
-        parameters: { targetTemperature: 24, mode: "cool" },
-        reason: "只有传感器确认室温偏高时才建议温控"
-      });
-    }
+    const temperature = analysis.context?.temperature ?? 24;
+    const targetTemperature = temperature > 25.5 ? 24 : temperature < 21 ? 22 : temperature;
+    const temperatureNeedsChange = temperature > 25.5 || temperature < 21;
+    add({
+      id: `${planId}-comfort-climate`, deviceId: "nursery-climate", capabilityId: "climate.temperature",
+      label: temperatureNeedsChange ? "把卧室调回舒适温度" : "保持当前舒适温度",
+      detail: temperatureNeedsChange ? `当前 ${temperature.toFixed(1)}°C，建议 ${targetTemperature}°C` : `当前 ${temperature.toFixed(1)}°C，温度暂时合适`,
+      parameters: { targetTemperature, mode: temperature > 25.5 ? "cool" : temperature < 21 ? "heat" : "auto" },
+      requiresExecution: temperatureNeedsChange,
+      alreadyOptimal: !temperatureNeedsChange,
+      reason: temperatureNeedsChange ? "温度传感器支持本次环境调整" : "传感器显示当前温度无需改变"
+    });
     if ((analysis.context?.humidity ?? 100) < 40) {
       add({
         id: `${planId}-dry-room`, deviceId: "nursery-humidifier", capabilityId: "humidifier.target",
@@ -229,7 +264,7 @@ export function buildAutomationPlan(analysis, devices) {
     reason: analysis.cryReason,
     actions,
     status: actions.length ? PLAN_STATUS.AWAITING_CONSENT : PLAN_STATUS.BLOCKED,
-    blockedReason: actions.length ? null : "no_context_supported_action"
+    blockedReason: actions.length ? null : "no_reason_linked_action"
   });
 }
 
@@ -250,7 +285,7 @@ export function createMockDevices() {
       state: { on: true, brightness: 62, colorTemperature: 3500 }
     }),
     new Device({
-      id: "nursery-climate", name: "卧室温控", category: "climate", status: DEVICE_STATUS.OFFLINE,
+      id: "nursery-climate", name: "卧室温控", category: "climate", status: DEVICE_STATUS.CONNECTED,
       capabilities: [
         { id: "climate.temperature", type: "temperature", parameters: { targetTemperature: [18, 28], modes: ["auto", "cool", "heat"] } }
       ],
@@ -264,11 +299,18 @@ export function createMockDevices() {
       state: { temperature: 25.8, humidity: 46 }
     }),
     new Device({
-      id: "white-noise", name: "白噪声机", category: "audio", status: DEVICE_STATUS.UNAUTHORIZED,
+      id: "white-noise", name: "白噪声机", category: "audio", status: DEVICE_STATUS.CONNECTED,
       capabilities: [
         { id: "audio.white_noise", type: "audio", parameters: { volume: [1, 40], maxDurationSeconds: 1800 } }
       ],
-      state: { on: false, volume: 0 }
+      state: { on: true, volume: 18, remainingSeconds: 600 }
+    }),
+    new Device({
+      id: "nursery-humidifier", name: "婴儿房加湿器", category: "humidifier", status: DEVICE_STATUS.CONNECTED,
+      capabilities: [
+        { id: "humidifier.target", type: "humidity", parameters: { targetHumidity: [40, 60] } }
+      ],
+      state: { on: false, currentHumidity: 46, targetHumidity: 48 }
     })
   ];
 }
@@ -336,12 +378,12 @@ export class MockSmartHomeAdapter extends SmartHomeAdapter {
 
     for (const action of selected) {
       const device = this.devices.find(item => item.id === action.deviceId);
-      if (!device || device.status === DEVICE_STATUS.OFFLINE || device.status === DEVICE_STATUS.UNAUTHORIZED) {
+      if (!device || device.status === DEVICE_STATUS.OFFLINE || device.status === DEVICE_STATUS.UNAUTHORIZED || device.automationEnabled === false) {
         results.push({
           actionId: action.id,
           deviceId: action.deviceId,
           status: "failed",
-          reason: !device ? "device_missing" : device.status
+          reason: !device ? "device_missing" : device.automationEnabled === false ? "automation_disabled" : device.status
         });
         continue;
       }
