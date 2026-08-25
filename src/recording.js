@@ -28,8 +28,13 @@ export class RecordingCountdown {
     this.completed = false;
     this.remaining = this.durationSeconds;
     this.onTick(this.remaining);
-    this.intervalId = this.setIntervalFn(() => this.tick(), 1000);
-    this.timeoutId = this.setTimeoutFn(() => this.complete(), this.durationSeconds * 1000);
+    // Native browser timers can reject calls that use the countdown object as
+    // their receiver. Invoke detached references so browser and test timers
+    // both run with the expected context.
+    const startInterval = this.setIntervalFn;
+    const startTimeout = this.setTimeoutFn;
+    this.intervalId = startInterval(() => this.tick(), 1000);
+    this.timeoutId = startTimeout(() => this.complete(), this.durationSeconds * 1000);
     return this;
   }
 
@@ -53,11 +58,13 @@ export class RecordingCountdown {
 
   stop() {
     if (this.intervalId !== null) {
-      this.clearIntervalFn(this.intervalId);
+      const clearIntervalTimer = this.clearIntervalFn;
+      clearIntervalTimer(this.intervalId);
       this.intervalId = null;
     }
     if (this.timeoutId !== null) {
-      this.clearTimeoutFn(this.timeoutId);
+      const clearTimeoutTimer = this.clearTimeoutFn;
+      clearTimeoutTimer(this.timeoutId);
       this.timeoutId = null;
     }
   }

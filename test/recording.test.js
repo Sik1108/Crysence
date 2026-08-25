@@ -47,3 +47,18 @@ test("five-second hard stop completes even when interval ticks are throttled", (
   assert.equal(completions, 1);
   assert.equal(countdown.completed, true);
 });
+
+test("browser timers are invoked without binding them to the countdown instance", () => {
+  const receivers = [];
+  const countdown = new RecordingCountdown({
+    setIntervalFn: function () { receivers.push(this); return 21; },
+    clearIntervalFn: function () { receivers.push(this); },
+    setTimeoutFn: function () { receivers.push(this); return 22; },
+    clearTimeoutFn: function () { receivers.push(this); }
+  });
+
+  countdown.start();
+  countdown.stop();
+
+  assert.deepEqual(receivers, [undefined, undefined, undefined, undefined]);
+});

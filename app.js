@@ -558,8 +558,8 @@ function requestAppPermission(kind, onGranted) {
 
 async function toggleRecording() {
   if (state.recording) {
-    showToast("正在听禾禾的声音，5 秒后会自动完成");
-    return;
+    finishRecording({ automatic: false });
+    return showToast("已提前结束录音，马上看看禾禾想表达什么");
   }
   requestAppPermission("microphone", beginRecording);
 }
@@ -581,19 +581,32 @@ async function beginRecording() {
     state.recording = true;
     state.levels = [];
     $("#recordButton").classList.add("recording");
-    $("#recordButton").disabled = true;
-    $("#recordButton").setAttribute("aria-label", "录音中，将在 5 秒后自动完成");
+    $("#recordButton").disabled = false;
+    $("#recordButton").setAttribute("aria-label", "停止录音并开始分析");
     $(".demo-actions").classList.add("hidden");
-    $("#recordStatus").textContent = "正在筛选有效哭声";
+    $("#recordStatus").textContent = "正在听禾禾的声音，再轻触一次可以提前结束";
     updateQuality("good", "正在检测声音");
-    visualizeWave();
     state.countdown.start();
-  } catch {
-    permissions.microphone = "denied";
-    persistPermissions();
-    updateQuality("low", "未获得麦克风权限");
-    $("#recordStatus").textContent = "可在浏览器设置中允许麦克风，或体验演示分析";
-    showToast("麦克风未授权，本次不会采集音频");
+    visualizeWave();
+  } catch (error) {
+    state.countdown.stop();
+    state.recording = false;
+    cancelAnimationFrame(state.animationId);
+    stopMediaCapture();
+    $("#recordButton").classList.remove("recording");
+    $("#recordButton").disabled = false;
+    $("#recordButton").setAttribute("aria-label", "开始 5 秒录音");
+    $(".demo-actions").classList.remove("hidden");
+    const permissionDenied = error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError";
+    if (permissionDenied) {
+      permissions.microphone = "denied";
+      persistPermissions();
+    }
+    updateQuality("low", permissionDenied ? "未获得麦克风权限" : "录音启动失败");
+    $("#recordStatus").textContent = permissionDenied
+      ? "可在浏览器设置中允许麦克风，或体验演示分析"
+      : "没有成功开始录音，请轻触按钮再试一次";
+    showToast(permissionDenied ? "麦克风未授权，本次不会采集音频" : "录音没有成功开始，请再试一次");
   }
 }
 
@@ -658,6 +671,7 @@ function finishRecording({ automatic = false } = {}) {
   cancelAnimationFrame(state.animationId);
   stopMediaCapture();
   $("#recordButton").classList.remove("recording");
+  $("#recordButton").setAttribute("aria-label", "声音已采集，正在分析");
   $("#recordStatus").textContent = automatic ? "5 秒声音已听完，正在理解禾禾的需要" : "声音已采集，正在分析";
   runInference("normal", false);
 }
