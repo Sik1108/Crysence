@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: crysense
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOST
+        value: 0.0.0.0
+      - key: MINIMAX_API_BASE
+        value: https://api.minimax.io/v1
+      - key: MINIMAX_TEXT_MODEL
+        value: MiniMax-M2.7
+      - key: MINIMAX_API_KEY
+        sync: false

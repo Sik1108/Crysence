@@ -18,11 +18,13 @@ test("timeline owns both records and the former insights experience", () => {
   assert.doesNotMatch(html, /id="insightsView"/);
 });
 
-test("community replaces the old insights tab and keeps baby moments private-first", () => {
+test("community uses one floating composer and keeps baby moments private-first", () => {
   assert.match(html, /data-nav="community"/);
   assert.match(html, /id="communityView"/);
-  assert.match(html, /id="openMomentComposer"/);
-  assert.match(html, /id="openAIStudio"/);
+  assert.match(html, /id="communityComposeButton"/);
+  assert.match(html, /id="communityComposeModal"/);
+  assert.match(html, /data-compose-action="note"/);
+  assert.match(html, /data-compose-action="ai"/);
   assert.match(html, /name="momentVisibility" value="private" checked/);
   assert.doesNotMatch(html, /data-nav="insights"/);
 });
@@ -32,4 +34,58 @@ test("home hero uses the original oversized baby artwork and five-second CTA", (
   assert.match(html, /开始 5 秒检测/);
   assert.match(html, /assets\/crysense-baby-listening\.webp/);
   assert.match(html, /class="care-glance-grid"/);
+});
+
+test("onboarding and community use distinct generated visual assets", () => {
+  assert.match(html, /assets\/onboarding-listen-v2\.webp/);
+  assert.match(html, /assets\/onboarding-home-v2\.webp/);
+  assert.match(html, /assets\/onboarding-safety-v2\.webp/);
+  assert.match(html, /class="campaign-carousel"/);
+  assert.match(html, /assets\/community-feature-arched\.webp/);
+  assert.doesNotMatch(html, /经验不是诊断|这里分享的是照护经验和成长瞬间/);
+});
+
+test("v4 exposes baby switching, conventional icons, search and masonry hooks", () => {
+  assert.match(html, /id="babySwitchModal"/);
+  assert.match(html, /data-baby-id="xinxin"/);
+  assert.match(html, /assets\/baby-xinxin-card-v9\.png/);
+  assert.match(html, /href="#i-bell"/);
+  assert.match(html, /data-nav="community"[\s\S]*?href="#i-chat"/);
+  assert.match(html, /href="#i-person"/);
+  assert.match(html, /id="communitySearch"/);
+  assert.match(html, /id="familyAvatarRail"/);
+  assert.match(html, /\+ 邀请家人/);
+});
+
+test("v4.1 moves search to a secondary page and revises community shortcuts", () => {
+  assert.match(html, /id="globalSearchButton"/);
+  assert.match(html, /id="communitySearchView"/);
+  assert.match(html, /id="communitySearchForm"/);
+  assert.match(html, />直播广场</);
+  assert.match(html, />购物车</);
+  assert.match(html, />我的订单</);
+  assert.match(html, />灵感中心</);
+  assert.match(html, />亲子活动</);
+  assert.match(html, /babycare 品牌活动/);
+  assert.doesNotMatch(html, /id="timelineBabyAvatar"|id="insightBabyAvatar"/);
+});
+
+test("v4.1 keeps only note and AI studio in the floating composer", () => {
+  const composeStart = html.indexOf('id="communityComposeModal"');
+  const composeEnd = html.indexOf('id="momentModal"');
+  const composeMarkup = html.slice(composeStart, composeEnd);
+  assert.match(composeMarkup, /data-compose-action="note"/);
+  assert.match(composeMarkup, /data-compose-action="ai"/);
+  assert.doesNotMatch(composeMarkup, /data-compose-action="camera"|data-compose-action="album"/);
+  assert.match(composeMarkup, /为 Ta 生成有趣又特别的照片/);
+  assert.match(html, /assets\/baby-hehe-card-v9\.png/);
+  assert.match(html, /id="i-device-crib"/);
+  assert.match(html, /id="i-device-humidifier"/);
+  assert.match(html, /class="baby-profile-mask"/);
+});
+
+test("direct file opening explains the module restriction and links to localhost", () => {
+  assert.match(html, /id="fileLaunchHelp"/);
+  assert.match(html, /window\.location\.protocol === "file:"/);
+  assert.match(html, /http:\/\/127\.0\.0\.1:4174\/\?fresh=1/);
 });

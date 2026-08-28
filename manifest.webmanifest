@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "CrySense 婴儿照护助手",
+  "short_name": "CrySense",
+  "description": "理解宝宝的哭声，记录成长，也让家人照护更安心。",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f5fb",
+  "theme_color": "#6e55b8",
+  "categories": ["health", "lifestyle", "family"],
+  "icons": [
+    {
+      "src": "/assets/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

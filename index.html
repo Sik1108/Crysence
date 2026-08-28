@@ -3,12 +3,58 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#f5f5f7" />
+  <meta name="theme-color" content="#6e55b8" />
   <meta name="description" content="CrySense 婴儿哭声理解与安全优先家庭照护助手" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="CrySense" />
   <title>CrySense</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/app-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/app-icon.svg" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <svg class="icon-sprite" aria-hidden="true">
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8v9H8v-7h8v7"/></symbol>
+    <symbol id="i-timeline" viewBox="0 0 24 24"><path d="M6 5h13M6 12h13M6 19h13"/><circle cx="3" cy="5" r="1"/><circle cx="3" cy="12" r="1"/><circle cx="3" cy="19" r="1"/></symbol>
+    <symbol id="i-device" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="4"/><path d="M9 7h6M10 17h4"/></symbol>
+    <symbol id="i-planet" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.7"/><circle cx="9.8" cy="10.4" r="1.25"/><path d="M4.4 7.1c-2.5 2.8-3.6 5.4-2.3 7 1.9 2.4 8.2.6 13.8-3.4 4.9-3.5 7.7-7.5 6.1-9.5-.8-1-2.8-.8-5.1.3M5.4 17.1c-1 2-1.1 3.5-.1 4.1 1 .7 2.9 0 5.1-1.5"/></symbol>
+    <symbol id="i-person" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-feeding" viewBox="0 0 24 24"><path d="M9 3h6v3l2 3v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9l2-3V3Z"/><path d="M9 12h8"/></symbol>
+    <symbol id="i-sleep" viewBox="0 0 24 24"><path d="M20 15a8 8 0 1 1-11-11 7 7 0 0 0 11 11Z"/><path d="m15 4 1-2 1 2 2 1-2 1-1 2-1-2-2-1 2-1Z"/></symbol>
+    <symbol id="i-diaper" viewBox="0 0 24 24"><path d="M5 7c1 3 3 5 7 5s6-2 7-5v10c-2 3-5 4-7 4s-5-1-7-4V7Z"/><path d="M5 13h4M19 13h-4"/></symbol>
+    <symbol id="i-soothing" viewBox="0 0 24 24"><path d="M12 21s-8-5-8-11a4 4 0 0 1 7-3 4 4 0 0 1 7-1c4 2 2 9-6 15Z"/></symbol>
+    <symbol id="i-temp" viewBox="0 0 24 24"><path d="M10 14V5a3 3 0 0 1 6 0v9a5 5 0 1 1-6 0Z"/><path d="M13 7v9"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 3h14v18H5Z"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h4l2-3h4l2 3h4v13H4Z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 18 5-5 4 4 3-3 5 4"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 2 1.5 5.5L19 9l-5.5 1.5L12 16l-1.5-5.5L5 9l5.5-1.5L12 2Z"/><path d="m19 15 .7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15Z"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2 20 5v6c0 5-3 9-8 11-5-2-8-6-8-11V5l8-3Z"/><path d="m8 12 3 3 5-6"/></symbol>
+    <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4M5 12v9h14v-9"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7V3l-3 3a8 8 0 1 0 2 9M20 3h-5"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 4H4v16h6M14 8l4 4-4 4M8 12h10"/></symbol>
+    <symbol id="i-live-plaza" viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="11" rx="3"/><path d="m10 10 5 2.5-5 2.5v-5ZM8 3h8"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 1.9-1.4L21 8H6"/><circle cx="10" cy="20" r="1.2"/><circle cx="18" cy="20" r="1.2"/></symbol>
+    <symbol id="i-orders" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z"/><path d="M9 8h6M9 12h6M9 16h3"/></symbol>
+    <symbol id="i-inspiration" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M8 14c-1.2-1.1-2-2.7-2-4.5a6 6 0 0 1 12 0c0 1.8-.8 3.4-2 4.5-.8.8-1 1.4-1 2H9c0-.6-.2-1.2-1-2Z"/><path d="M12 2V0M4 4 2.5 2.5M20 4l1.5-1.5"/></symbol>
+    <symbol id="i-family-event" viewBox="0 0 24 24"><path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12Z"/><path d="m12 6 1 2 2.2.3-1.6 1.6.4 2.2-2-1-2 1 .4-2.2-1.6-1.6L11 8l1-2Z"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 7h13l-3-3M17 17H4l3 3"/></symbol>
+    <symbol id="i-mobile" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M10 5h4M11 19h2"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 4h16v13H9l-5 4V4Z"/><path d="M8 9h8M8 13h5"/></symbol>
+    <symbol id="i-device-crib" viewBox="0 0 48 48"><path d="M8 27h32v9H8z"/><path d="M11 27V14h26v13M14 16v10M34 16v10M14 36v5M34 36v5"/><path d="M18 19h12v4H18z"/></symbol>
+    <symbol id="i-device-lamp" viewBox="0 0 48 48"><path d="M17 25h14l-3-12h-8l-3 12Z"/><path d="M24 25v10M18 37h12"/><path d="M24 7V4M13 12l-3-2M35 12l3-2"/></symbol>
+    <symbol id="i-device-climate" viewBox="0 0 48 48"><rect x="11" y="8" width="26" height="32" rx="6"/><circle cx="24" cy="21" r="7"/><path d="M24 17v4l3 2M18 33h12"/></symbol>
+    <symbol id="i-device-sensor" viewBox="0 0 48 48"><rect x="12" y="8" width="24" height="32" rx="8"/><path d="M21 26V16a3 3 0 0 1 6 0v10a6 6 0 1 1-6 0Z"/><path d="M24 21v8"/></symbol>
+    <symbol id="i-device-audio" viewBox="0 0 48 48"><rect x="11" y="9" width="26" height="30" rx="8"/><circle cx="24" cy="25" r="8"/><circle cx="24" cy="14" r="1.5"/><path d="M21 25h6M24 22v6"/></symbol>
+    <symbol id="i-device-humidifier" viewBox="0 0 48 48"><path d="M15 19h18l3 17H12l3-17Z"/><path d="M18 19V9h12v10M24 5c-2 3-4 5-4 8a4 4 0 0 0 8 0c0-3-2-5-4-8Z"/></symbol>
+  </svg>
   <section class="launch-screen" id="launchScreen" aria-label="CrySense 启动页">
     <div class="brand-lockup">
       <span class="launch-symbol" aria-hidden="true">
@@ -20,6 +66,12 @@
       <p>陪你更安心地理解宝宝此刻的需要</p>
     </div>
     <p class="launch-assurance"><span aria-hidden="true">✓</span>安全优先的婴儿照护助手</p>
+    <div class="file-launch-help" id="fileLaunchHelp" hidden>
+      <b>需要通过本地服务打开</b>
+      <p>直接双击 HTML 会被浏览器拦截模块，应用无法完成启动。</p>
+      <a href="http://127.0.0.1:4174/?fresh=1">打开 CrySense</a>
+      <small>如果链接打不开，请先在项目目录运行 npm run dev</small>
+    </div>
   </section>
 
   <section class="auth-screen hidden" id="onboardingScreen" aria-labelledby="onboardingTitle">
@@ -29,19 +81,31 @@
     </header>
     <div class="onboarding-pages">
       <article class="onboarding-page active" data-onboarding-page="0">
-        <div class="onboarding-visual listen-visual" aria-hidden="true"><span class="brand-mark"><i></i><i></i><i></i></span></div>
+        <div class="onboarding-visual listen-visual" aria-hidden="true">
+          <span class="onboarding-layer layer-back"></span><span class="onboarding-layer layer-mid"></span>
+          <img src="assets/onboarding-listen-v2.webp" alt="" width="1200" height="900" />
+          <span class="onboarding-orb"><span class="brand-mark"><i></i><i></i><i></i></span></span>
+        </div>
         <p class="section-label">5 秒分析</p>
         <h1 id="onboardingTitle">听懂宝宝的哭声</h1>
         <p>只需安静听 5 秒，一起分辨宝宝是饿了、困了，还是有些不舒服。</p>
       </article>
       <article class="onboarding-page" data-onboarding-page="1">
-        <div class="onboarding-visual home-visual" aria-hidden="true"><span>卧室</span><b>24.1°C</b><small>灯光与婴儿床待命</small></div>
+        <div class="onboarding-visual home-visual" aria-hidden="true">
+          <span class="onboarding-layer layer-back"></span><span class="onboarding-layer layer-mid"></span>
+          <img src="assets/onboarding-home-v2.webp" alt="" width="1200" height="900" />
+          <span class="onboarding-orb home-orb">⌂</span>
+        </div>
         <p class="section-label">由哭因驱动</p>
         <h1>让房间也轻轻回应</h1>
         <p>合适的灯光、温度和摇床会先形成方案，得到你的允许后才会行动。</p>
       </article>
       <article class="onboarding-page" data-onboarding-page="2">
-        <div class="onboarding-visual safety-visual" aria-hidden="true"><span>!</span><b>安全优先</b></div>
+        <div class="onboarding-visual safety-visual" aria-hidden="true">
+          <span class="onboarding-layer layer-back"></span><span class="onboarding-layer layer-mid"></span>
+          <img src="assets/onboarding-safety-v2.webp" alt="" width="1200" height="900" />
+          <span class="onboarding-orb safety-orb">✓</span>
+        </div>
         <p class="section-label danger-label">医疗安全边界</p>
         <h1>辅助判断，不替代诊断</h1>
         <p>发现异常或无法可靠判断时，我们会停下自动化，陪你先确认宝宝是否安全。</p>
@@ -74,11 +138,14 @@
   <div class="app-shell hidden" id="appShell">
     <header class="topbar" id="topbar">
       <button class="baby-switch" type="button" id="babySwitch" aria-label="切换宝宝">
-        <span class="baby-avatar">禾</span>
-        <span><b>禾禾</b><small>4 个月</small></span>
-        <i aria-hidden="true">⌄</i>
+        <img class="baby-avatar" id="topBabyAvatar" src="assets/baby-hehe-card-v9.png" alt="禾禾头像" width="96" height="96" />
+        <span><b id="topBabyName">禾禾</b><small id="topBabyAge">4 个月</small></span>
+        <svg class="icon chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
       </button>
-      <button class="icon-button" id="notificationButton" type="button" aria-label="通知设置"><span aria-hidden="true">◇</span><i></i></button>
+      <div class="topbar-actions">
+        <button class="icon-button" id="globalSearchButton" type="button" aria-label="搜索社区内容"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg></button>
+        <button class="icon-button" id="notificationButton" type="button" aria-label="通知设置"><svg class="icon" aria-hidden="true"><use href="#i-bell"/></svg><i></i></button>
+      </div>
     </header>
 
     <main>
@@ -86,14 +153,14 @@
         <div class="page-intro">
           <p class="section-label" id="dateLabel">8 月 25 日 星期二</p>
           <h1 id="homeTitle">CrySense</h1>
-          <p>禾禾状态平稳。今天已经记录 3 次哭闹。</p>
+          <p id="homeIntroCopy">禾禾状态平稳。今天已经记录 3 次哭闹。</p>
         </div>
 
         <section class="baby-summary" aria-labelledby="babyStatusTitle">
           <div>
             <p class="section-label">宝宝当前状态</p>
             <h2 id="babyStatusTitle"><span class="semantic-dot safe"></span>清醒中</h2>
-            <p>已清醒 1 小时 26 分钟，上次喂养在 2 小时前。</p>
+            <p id="babyStatusCopy">已清醒 1 小时 26 分钟，上次喂养在 2 小时前。</p>
           </div>
           <button class="small-button" id="handoffButton" type="button">照护交接</button>
         </section>
@@ -102,7 +169,7 @@
           <span class="hero-copy">
             <small>听听宝宝此刻的需要</small>
             <strong>宝宝在哭吗？</strong>
-            <span>安静听 5 秒，我们先一起确认禾禾是否安全。</span>
+            <span id="listenHeroCopy">安静听 5 秒，我们先一起确认禾禾是否安全。</span>
             <span class="hero-cta">开始 5 秒检测</span>
           </span>
           <img class="listen-baby-art" src="assets/crysense-baby-listening.webp" alt="" aria-hidden="true" width="512" height="768" />
@@ -125,14 +192,14 @@
 
         <section class="quick-record-card" aria-labelledby="quickRecordTitle">
           <div class="section-heading"><div><p class="section-label">随手记一下</p><h2 id="quickRecordTitle">刚刚发生了什么？</h2></div><span class="caption">一两步就好</span></div>
-          <p class="warm-helper">每一条小记录，都会让我们更懂禾禾今天的节奏。</p>
+          <p class="warm-helper" id="quickRecordHelper">每一条小记录，都会让我们更懂禾禾今天的节奏。</p>
           <div class="quick-actions" aria-label="快速记录">
-            <button type="button" data-log="feeding"><span>喂</span><small>喂养</small></button>
-            <button type="button" data-log="sleep"><span>睡</span><small>睡眠</small></button>
-            <button type="button" data-log="diaper"><span>尿</span><small>尿布</small></button>
-            <button type="button" data-log="soothing"><span>安</span><small>安抚</small></button>
-            <button type="button" data-log="temperature"><span>温</span><small>体温</small></button>
-            <button type="button" data-log="note"><span>记</span><small>备注</small></button>
+            <button type="button" data-log="feeding"><span><svg class="icon"><use href="#i-feeding"/></svg></span><small>喂养</small></button>
+            <button type="button" data-log="sleep"><span><svg class="icon"><use href="#i-sleep"/></svg></span><small>睡眠</small></button>
+            <button type="button" data-log="diaper"><span><svg class="icon"><use href="#i-diaper"/></svg></span><small>尿布</small></button>
+            <button type="button" data-log="soothing"><span><svg class="icon"><use href="#i-soothing"/></svg></span><small>安抚</small></button>
+            <button type="button" data-log="temperature"><span><svg class="icon"><use href="#i-temp"/></svg></span><small>体温</small></button>
+            <button type="button" data-log="note"><span><svg class="icon"><use href="#i-note"/></svg></span><small>备注</small></button>
           </div>
         </section>
 
@@ -170,7 +237,7 @@
             <div><small>常见时段</small><strong>18-21 时</strong></div>
           </section>
           <button class="timeline-insight-preview" type="button" data-timeline-segment="insight">
-            <span class="insight-preview-mark" aria-hidden="true">禾</span>
+            <span class="insight-preview-mark insight-mark-abstract" aria-hidden="true"><svg class="icon"><use href="#i-sparkles"/></svg></span>
             <span><small>本周洞察</small><strong>晚间更容易慢慢安静下来</strong><em>查看记录背后的节奏</em></span>
             <i aria-hidden="true">›</i>
           </button>
@@ -194,7 +261,7 @@
         <div class="timeline-panel" id="timelineInsightPanel" role="tabpanel" aria-labelledby="timelineInsightTab" hidden>
           <div class="insight-panel-head"><div><p class="section-label">近 7 天的照护记录</p><h2>禾禾的节奏</h2><p>不急着下结论，我们一起看看哪些变化值得温柔留意。</p></div><button class="small-button" id="periodButton" type="button">本周</button></div>
           <section class="insight-lead">
-            <span class="insight-glyph" aria-hidden="true">禾</span>
+            <span class="insight-glyph insight-mark-abstract" aria-hidden="true"><svg class="icon"><use href="#i-timeline"/></svg></span>
             <div><p class="section-label">本周小结</p><h2>晚间更容易安静下来</h2><p>在已反馈的演示记录里，提前调暗灯光并减少逗弄后，禾禾更容易慢慢平静。</p><button class="text-button" type="button" data-timeline-segment="record">看看相关记录</button></div>
           </section>
           <section class="insight-summary" aria-label="本周摘要">
@@ -244,21 +311,23 @@
       </section>
 
       <section class="view community-view" id="communityView" aria-labelledby="communityTitle">
-        <div class="page-heading community-heading"><div><p class="section-label">同阶段家庭的温柔片刻</p><h1 id="communityTitle">社区</h1><p>这里分享的是照护经验和成长瞬间，不替代 CrySense 的安全判断。</p></div><button class="round-add" id="communityAddButton" type="button" aria-label="记录宝宝">+</button></div>
-
-        <button class="moment-callout" id="openMomentComposer" type="button">
-          <span class="moment-callout-art" aria-hidden="true"><img src="assets/crysense-baby-listening.webp" alt="" width="512" height="768" /></span>
-          <span><small>宝宝小记</small><strong>把今天的小瞬间收好</strong><em>默认仅自己可见，需要时再分享给家人或社区</em></span>
-          <i aria-hidden="true">›</i>
-        </button>
-
-        <button class="ai-studio-card" id="openAIStudio" type="button">
-          <span class="ai-studio-symbol" aria-hidden="true">AI</span>
-          <span><small>演示功能，不会上传照片</small><strong>把照片变成小作品</strong><em>大头贴、绘本小主角、温柔漫画格</em></span>
-          <i aria-hidden="true">›</i>
-        </button>
-
-        <div class="community-section-head"><div><h2>同月龄片刻</h2><p>看看相近阶段的家庭，今天正在经历什么。</p></div></div>
+        <div class="community-discovery-head">
+          <div><p class="section-label">发现同频的家庭</p><h1 id="communityTitle">社区</h1></div>
+        </div>
+        <div class="campaign-carousel" id="campaignCarousel" aria-label="社区活动">
+          <button class="campaign-card campaign-babycare" type="button" data-campaign="babycare"><img src="assets/babycare-campaign-v1.webp" alt="妈妈为宝宝穿上淡紫色婴儿睡袋" width="1024" height="1536" /><span><small>babycare 品牌活动 · 08.27—09.08</small><strong>柔软入睡，从今晚开始</strong><em>轻薄睡袋体验季，记录宝宝的舒适夜晚</em></span></button>
+          <button class="campaign-card campaign-growth" type="button" data-campaign="growth"><img src="assets/community-feature-arched.webp" alt="妈妈与宝宝的家庭成长时刻" width="800" height="1000" /><span><small>CrySense 月龄策划</small><strong>第一次，值得被记住</strong><em>征集宝宝本月的新发现</em></span></button>
+          <button class="campaign-card campaign-play" type="button" data-campaign="play"><img src="assets/community-tummy-time.webp" alt="宝宝在明亮客厅练习趴卧" width="1200" height="900" /><span><small>周末线上活动</small><strong>亲子游戏实验室</strong><em>跟着康复师解锁 5 分钟小游戏</em></span></button>
+        </div>
+        <div class="campaign-dots" aria-hidden="true"><i class="active"></i><i></i><i></i></div>
+        <nav class="community-shortcuts" aria-label="社区快捷功能">
+          <button type="button" data-community-shortcut="live-plaza"><span><svg class="icon"><use href="#i-live-plaza"/></svg></span><small>直播广场</small></button>
+          <button type="button" data-community-shortcut="cart"><span><svg class="icon"><use href="#i-cart"/></svg></span><small>购物车</small></button>
+          <button type="button" data-community-shortcut="orders"><span><svg class="icon"><use href="#i-orders"/></svg></span><small>我的订单</small></button>
+          <button type="button" data-community-shortcut="inspiration"><span><svg class="icon"><use href="#i-inspiration"/></svg></span><small>灵感中心</small></button>
+          <button type="button" data-community-shortcut="events"><span><svg class="icon"><use href="#i-family-event"/></svg></span><small>亲子活动</small></button>
+        </nav>
+        <div class="community-section-head"><div><h2>同月龄片刻</h2><p>真实生活里，那些值得交换的小灵感。</p></div></div>
         <div class="community-filters" id="communityFilters" aria-label="社区内容筛选">
           <button class="active" type="button" data-community-filter="all">推荐</button>
           <button type="button" data-community-filter="same-age">同月龄</button>
@@ -267,36 +336,71 @@
           <button type="button" data-community-filter="growth">成长瞬间</button>
         </div>
         <div class="community-feed" id="communityFeed"></div>
-        <aside class="community-safety-note"><span aria-hidden="true">安</span><p><b>经验不是诊断</b>每个宝宝的情况不同。出现危险体征时，请先使用安全检查或联系专业医疗人员。</p></aside>
+      </section>
+
+      <section class="view community-search-view" id="communitySearchView" aria-labelledby="communitySearchTitle">
+        <header class="search-page-header">
+          <button class="search-back-button" id="closeCommunitySearch" type="button" aria-label="返回社区">‹</button>
+          <form class="search-page-form" id="communitySearchForm" role="search">
+            <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+            <input id="communitySearch" type="search" placeholder="搜索社区内容" autocomplete="off" />
+            <button type="submit">搜索</button>
+          </form>
+        </header>
+        <div class="search-page-content">
+          <section class="search-history" id="communitySearchHistory" aria-labelledby="communitySearchTitle">
+            <div class="search-section-heading"><h1 id="communitySearchTitle">历史记录</h1><button id="clearSearchHistory" type="button" aria-label="清空搜索历史">清空</button></div>
+            <div class="search-chip-list" id="searchHistoryChips"></div>
+          </section>
+          <section class="search-suggestions" id="communitySearchSuggestions">
+            <div class="search-section-heading"><h2>猜你想搜</h2><span>为你推荐</span></div>
+            <div class="suggestion-grid" id="searchSuggestionGrid"></div>
+          </section>
+          <section class="search-results hidden" id="communitySearchResults" aria-live="polite">
+            <div class="search-section-heading"><h2>搜索结果</h2><span id="searchResultCount"></span></div>
+            <div id="searchResultList"></div>
+          </section>
+        </div>
       </section>
 
       <section class="view" id="profileView" aria-labelledby="profileTitle">
-        <div class="page-heading"><div><p class="section-label">我们的照护小家</p><h1 id="profileTitle">我的 CrySense</h1><p>照顾宝宝，也照顾每一位一起陪伴禾禾的人。</p></div></div>
-        <section class="profile-card profile-hero">
-          <span class="large-avatar">禾</span><div><p class="section-label">当前宝宝</p><h2>禾禾</h2><p>4 个月 12 天，2026 年 4 月 12 日出生</p><span>我们已经一起补充了 28 次有效反馈</span></div><button class="small-button" id="editProfileButton" type="button">编辑</button>
+        <div class="page-heading"><div><p class="section-label">我们的照护小家</p><h1 id="profileTitle">我的 CrySense</h1><p id="profileIntroCopy">照顾宝宝，也照顾每一位一起陪伴禾禾的人。</p></div></div>
+        <section class="profile-card profile-hero baby-profile-card">
+          <div class="baby-profile-copy">
+            <p class="section-label">当前宝宝</p>
+            <h2 id="profileBabyName">禾禾</h2>
+            <p class="baby-profile-mask" aria-hidden="true">••••&nbsp;&nbsp;••••</p>
+            <div class="baby-profile-meta"><span id="profileBabyBirth">4个月12天 · 2026.04.12</span><span id="profileBabyFeedback">28 次有效反馈</span></div>
+            <button class="profile-edit-button" id="editProfileButton" type="button"><svg class="icon"><use href="#i-note"/></svg>编辑资料</button>
+          </div>
+          <span class="baby-profile-star" aria-hidden="true">✦</span>
+          <img id="profileBabyImage" src="assets/baby-hehe-card-v9.png" alt="禾禾宝宝抠图" width="1123" height="1383" />
         </section>
         <section class="settings-card family-card" aria-labelledby="familyTitle">
-          <div class="section-heading"><div><p class="section-label">共同照护</p><h2 id="familyTitle">家人们</h2></div><button class="text-button" id="inviteButton" type="button">邀请家人</button></div>
-          <div class="member-row"><span class="member-avatar moss">爸</span><p><b>爸爸</b><small>管理员，正在照护中</small></p><em class="member-state">当前</em></div>
-          <div class="member-row"><span class="member-avatar lilac-bg">妈</span><p><b>妈妈</b><small>管理员，12:58 更新</small></p><i>›</i></div>
-          <div class="member-row"><span class="member-avatar sand-bg">奶</span><p><b>奶奶</b><small>临时照护者，昨天在线</small></p><i>›</i></div>
+          <div class="section-heading"><div><p class="section-label">共同照护</p><h2 id="familyTitle">家人们</h2></div><button class="text-button family-invite" id="inviteButton" type="button">+ 邀请家人</button></div>
+          <div class="family-avatar-rail" id="familyAvatarRail">
+            <button class="active" type="button" data-family-member="dad"><img src="assets/family-dad.webp" alt="爸爸头像" width="160" height="160" /><small>爸爸</small></button>
+            <button type="button" data-family-member="mom"><img src="assets/family-mom.webp" alt="妈妈头像" width="160" height="160" /><small>妈妈</small></button>
+            <button type="button" data-family-member="grandma"><img src="assets/family-grandma.webp" alt="奶奶头像" width="160" height="160" /><small>奶奶</small></button>
+          </div>
+          <article class="family-member-detail" id="familyMemberDetail"><div><small>当前照护者</small><h3>爸爸正在陪伴禾禾</h3><p>接班 36 分钟 · 上次记录：12:58 喂养</p></div><button class="small-button" type="button" data-family-action>查看交接</button></article>
         </section>
         <section class="personalization-card">
-          <div class="personalization-top"><span aria-hidden="true">禾</span><div><p class="section-label">个性化进度</p><h2>正在一点点了解禾禾</h2></div><strong>28<small>次反馈</small></strong></div>
+          <div class="personalization-top"><span aria-hidden="true"><svg class="icon"><use href="#i-sparkles"/></svg></span><div><p class="section-label">个性化进度</p><h2 id="personalizationTitle">正在一点点了解禾禾</h2></div><strong id="personalizationCount">28<small>次反馈</small></strong></div>
           <div class="progress" aria-label="个性化进度"><i></i></div>
           <p>这些反馈只用于调整照护建议顺序，不会被当作医学诊断依据。</p>
         </section>
         <section class="settings-card menu-card">
-          <button type="button" id="knowledgeButton"><span>安</span><p><b>知识与安全中心</b><small>按月龄查看照护知识与危险信号</small></p><i>›</i></button>
-          <button type="button" id="personalizationButton"><span>禾</span><p><b>个性化照护策略</b><small>看看 CrySense 如何逐渐适应禾禾</small></p><i>›</i></button>
-          <button type="button" id="exportButton"><span>记</span><p><b>导出与分享</b><small>整理家庭摘要或就诊资料</small></p><i>›</i></button>
+          <button type="button" id="knowledgeButton"><span><svg class="icon"><use href="#i-shield"/></svg></span><p><b>知识与安全中心</b><small>按月龄查看照护知识与危险信号</small></p><i>›</i></button>
+          <button type="button" id="personalizationButton"><span><svg class="icon"><use href="#i-sparkles"/></svg></span><p><b>个性化照护策略</b><small id="personalizationMenuCopy">看看 CrySense 如何逐渐适应禾禾</small></p><i>›</i></button>
+          <button type="button" id="exportButton"><span><svg class="icon"><use href="#i-export"/></svg></span><p><b>导出与分享</b><small>整理家庭摘要或就诊资料</small></p><i>›</i></button>
         </section>
         <section class="settings-card menu-card secondary-menu" aria-labelledby="settingsTitle">
           <div class="menu-section-title"><p class="section-label">账户与应用</p><h2 id="settingsTitle">设置</h2></div>
-          <button type="button" id="notificationSettings"><span>醒</span><p><b>提醒与夜间模式</b><small id="notificationPermissionText">按需申请通知权限</small></p><i>›</i></button>
-          <button type="button" id="privacyButton"><span>隐</span><p><b>数据与隐私</b><small>原始音频默认不上传</small></p><i>›</i></button>
-          <button type="button" id="revisitOnboardingButton"><span>新</span><p><b>重新查看新手引导</b><small>再了解一次安全边界与设备授权</small></p><i>›</i></button>
-          <button type="button" id="logoutButton"><span>退</span><p><b>退出原型账户</b><small>禾禾在本机的记录会被好好保留</small></p><i>›</i></button>
+          <button type="button" id="notificationSettings"><span><svg class="icon"><use href="#i-bell"/></svg></span><p><b>提醒与夜间模式</b><small id="notificationPermissionText">按需申请通知权限</small></p><i>›</i></button>
+          <button type="button" id="privacyButton"><span><svg class="icon"><use href="#i-lock"/></svg></span><p><b>数据与隐私</b><small>原始音频默认不上传</small></p><i>›</i></button>
+          <button type="button" id="revisitOnboardingButton"><span><svg class="icon"><use href="#i-refresh"/></svg></span><p><b>重新查看新手引导</b><small>再了解一次安全边界与设备授权</small></p><i>›</i></button>
+          <button type="button" id="logoutButton"><span><svg class="icon"><use href="#i-logout"/></svg></span><p><b>退出原型账户</b><small id="logoutBabyCopy">禾禾在本机的记录会被好好保留</small></p><i>›</i></button>
         </section>
         <p class="medical-note">CrySense 陪你理解和记录，但不替代专业医疗判断。</p>
       </section>
@@ -409,12 +513,14 @@
       </section>
     </main>
 
+    <button class="community-compose-fab hidden" id="communityComposeButton" type="button" aria-label="发布宝宝小记或创作 AI 照片"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+
     <nav class="bottom-nav" aria-label="主导航">
-      <button class="active" data-nav="home" type="button"><span aria-hidden="true">⌂</span><small>首页</small></button>
-      <button data-nav="timeline" type="button"><span aria-hidden="true">≡</span><small>时间线</small></button>
-      <button data-nav="devices" type="button"><span aria-hidden="true">◇</span><small>设备</small></button>
-      <button data-nav="community" type="button"><span aria-hidden="true">⌁</span><small>社区</small></button>
-      <button data-nav="profile" type="button"><span aria-hidden="true">○</span><small>我的</small></button>
+      <button class="active" data-nav="home" type="button"><svg class="icon" aria-hidden="true"><use href="#i-home"/></svg><small>首页</small></button>
+      <button data-nav="timeline" type="button"><svg class="icon" aria-hidden="true"><use href="#i-timeline"/></svg><small>时间线</small></button>
+      <button data-nav="devices" type="button"><svg class="icon" aria-hidden="true"><use href="#i-device"/></svg><small>设备</small></button>
+      <button data-nav="community" type="button"><svg class="icon" aria-hidden="true"><use href="#i-chat"/></svg><small>社区</small></button>
+      <button data-nav="profile" type="button"><svg class="icon" aria-hidden="true"><use href="#i-person"/></svg><small>我的</small></button>
     </nav>
   </div>
 
@@ -471,6 +577,29 @@
     </div>
   </div>
 
+  <div class="modal-backdrop hidden" id="babySwitchModal" role="dialog" aria-modal="true" aria-labelledby="babySwitchTitle">
+    <div class="bottom-sheet baby-switch-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><div><p class="section-label">宝宝档案</p><h2 id="babySwitchTitle">今天在照顾谁？</h2></div><button class="close-button" id="closeBabySwitchModal" type="button" aria-label="关闭">×</button></div>
+      <div class="baby-switch-options">
+        <button class="active" type="button" data-baby-id="hehe"><img src="assets/baby-hehe-card-v9.png" alt="禾禾宝宝照片" width="240" height="240" /><span><b>禾禾</b><small>4 个月 · 当前档案</small></span><i>✓</i></button>
+        <button type="button" data-baby-id="xinxin"><img src="assets/baby-xinxin-card-v9.png" alt="鑫鑫宝宝照片" width="240" height="240" /><span><b>鑫鑫</b><small>7 个月 · 独立照护记录</small></span><i>✓</i></button>
+      </div>
+      <p class="consent-note">切换后，首页状态、时间线与个性化建议会同步显示对应宝宝的内容。</p>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="communityComposeModal" role="dialog" aria-modal="true" aria-labelledby="communityComposeTitle">
+    <div class="bottom-sheet compose-sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><div><p class="section-label">创作</p><h2 id="communityComposeTitle">记录此刻，或把它变成作品</h2></div><button class="close-button" id="closeCommunityCompose" type="button" aria-label="关闭">×</button></div>
+      <div class="compose-actions">
+        <button type="button" data-compose-action="note"><span><svg class="icon"><use href="#i-note"/></svg></span><p><b>宝宝小记</b><small>写文字，也可以带一张照片</small></p><i>›</i></button>
+        <button type="button" data-compose-action="ai"><span><svg class="icon"><use href="#i-sparkles"/></svg></span><p><b>AI 照片工作室</b><small>为 Ta 生成有趣又特别的照片</small></p><i>›</i></button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop hidden" id="momentModal" role="dialog" aria-modal="true" aria-labelledby="momentModalTitle">
     <div class="bottom-sheet moment-sheet">
       <div class="sheet-handle"></div>
@@ -490,14 +619,16 @@
     <div class="bottom-sheet ai-art-sheet">
       <div class="sheet-handle"></div>
       <div class="sheet-head"><div><p class="section-label">AI 艺术照相馆</p><h2 id="aiArtTitle">把照片画成小作品</h2></div><button class="close-button" id="closeAIArtModal" type="button" aria-label="关闭">×</button></div>
-      <div class="ai-mock-banner"><span aria-hidden="true">i</span><p><b>当前是安全演示</b><small>只使用预制示例图，不会读取、上传或训练真实宝宝照片。</small></p></div>
-      <button class="ai-source-card" id="selectDemoPhotoButton" type="button"><span class="ai-source-thumb"><img src="assets/crysense-baby-listening.webp" alt="演示用卡通宝宝素材" width="512" height="768" /></span><span><b id="aiSourceTitle">选择演示照片</b><small id="aiSourceDescription">轻触后即可体验完整创作流程</small></span><i aria-hidden="true">›</i></button>
+      <div class="ai-mock-banner live-service" id="miniMaxStatus"><span aria-hidden="true"><svg class="icon"><use href="#i-sparkles"/></svg></span><p><b>正在检查 MiniMax 图像服务</b><small>真实生成前会先征得上传同意，不把照片用于本地演示外的用途。</small></p></div>
+      <input class="visually-hidden" id="aiPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" />
+      <label class="ai-source-card" for="aiPhotoInput"><span class="ai-source-thumb"><img id="aiPhotoPreview" src="assets/community-feature-arched.webp" alt="待创作照片预览" width="800" height="1000" /></span><span><b id="aiSourceTitle">拍摄或选择一张照片</b><small id="aiSourceDescription">支持 JPG、PNG、WebP，建议主体清晰</small></span><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg></label>
       <fieldset class="ai-style-field"><legend>选择一种风格</legend><div class="ai-style-grid" id="aiStyleGrid">
         <button class="active" type="button" data-ai-style="sticker"><span class="style-swatch sticker"></span><b>宝宝大头贴</b><small>柔和纯色背景</small></button>
         <button type="button" data-ai-style="pictureBook"><span class="style-swatch picture-book"></span><b>绘本小主角</b><small>轻柔蜡笔质感</small></button>
         <button type="button" data-ai-style="comic"><span class="style-swatch comic"></span><b>温柔漫画格</b><small>单格日常片刻</small></button>
       </div></fieldset>
-      <div class="ai-generation-state empty" id="aiGenerationState" role="status" aria-live="polite"><p>选好演示照片和风格后，就可以开始创作。</p></div>
+      <label class="ai-upload-consent"><input id="aiUploadConsent" type="checkbox" /><span><b>同意本次将照片发送至 MiniMax 生成</b><small>仅用于本次生成；是否留存由部署方的服务策略决定。</small></span></label>
+      <div class="ai-generation-state empty" id="aiGenerationState" role="status" aria-live="polite"><p>选好照片和风格后，就可以开始创作。</p></div>
       <button class="primary-button" id="startAIGenerationButton" type="button" disabled>开始创作</button>
       <button class="secondary-button hidden" id="saveAIArtworkButton" type="button">私密保存这张作品</button>
       <button class="secondary-button hidden" id="retryAIArtworkButton" type="button">换一种效果</button>
@@ -518,6 +649,16 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    if (window.location.protocol === "file:") {
+      window.setTimeout(function () {
+        var help = document.getElementById("fileLaunchHelp");
+        var assurance = document.querySelector(".launch-assurance");
+        if (help) help.hidden = false;
+        if (assurance) assurance.hidden = true;
+      }, 900);
+    }
+  </script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

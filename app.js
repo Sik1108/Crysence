@@ -39,6 +39,50 @@ const EVENT_META = {
 
 const FLOW_KEY = "crysense-app-flow-v3";
 const PERMISSION_KEY = "crysense-permissions-v3";
+const BABY_KEY = "crysense-active-baby-v4";
+
+const BABIES = Object.freeze({
+  hehe: {
+    id: "hehe",
+    profileId: "baby-hehe",
+    name: "禾禾",
+    age: "4 个月",
+    ageLong: "4 个月 12 天",
+    birthday: "2026 年 4 月 12 日",
+    birthdayShort: "2026.04.12",
+    ageBand: "4-6 个月",
+    image: "assets/baby-hehe-card-v9.png",
+    cutout: "assets/baby-hehe-card-v9.png",
+    cryCount: 3,
+    awake: "1 小时 26 分钟",
+    lastFeed: "2 小时前",
+    sleepToday: "5 小时 42 分",
+    feedbackCount: 28
+  },
+  xinxin: {
+    id: "xinxin",
+    profileId: "baby-xinxin",
+    name: "鑫鑫",
+    age: "7 个月",
+    ageLong: "7 个月 6 天",
+    birthday: "2026 年 1 月 21 日",
+    birthdayShort: "2026.01.21",
+    ageBand: "7-9 个月",
+    image: "assets/baby-xinxin-card-v9.png",
+    cutout: "assets/baby-xinxin-card-v9.png",
+    cryCount: 2,
+    awake: "54 分钟",
+    lastFeed: "1 小时 18 分前",
+    sleepToday: "6 小时 08 分",
+    feedbackCount: 19
+  }
+});
+
+const FAMILY_MEMBERS = Object.freeze({
+  dad: { name: "爸爸", image: "assets/family-dad.webp", role: "主要照护人", lastUpdate: "刚刚", handoff: "今天 08:30", devices: "3 台", action: "联系 / 交接" },
+  mom: { name: "妈妈", image: "assets/family-mom.webp", role: "共同管理员", lastUpdate: "1 小时前", handoff: "昨天 21:45", devices: "5 台", action: "联系 / 交接" },
+  grandma: { name: "奶奶", image: "assets/family-grandma.webp", role: "临时照护者", lastUpdate: "昨天", handoff: "周二 14:20", devices: "1 台", action: "联系 / 交接" }
+});
 
 function parseStored(key, fallback) {
   try {
@@ -114,14 +158,28 @@ const state = {
   activeDeviceId: null,
   timelineSegment: "record",
   communityFilter: "all",
+  communityQuery: "",
+  communitySearchHistory: parseStored("crysense-community-search-v1", ["宝宝睡眠", "辅食添加", "babycare 睡袋", "亲子游戏"]),
+  searchReturnView: "community",
+  activeBabyId: localStorage.getItem(BABY_KEY) in BABIES ? localStorage.getItem(BABY_KEY) : "hehe",
+  activeFamilyMemberId: "dad",
   momentHasMockPhoto: false,
   pendingMomentId: null,
   aiStyle: AI_ART_STYLE.STICKER,
   aiSourceSelected: false,
   aiJobId: null,
   aiResultSelection: 0,
-  aiGenerationTimer: null
+  aiGenerationTimer: null,
+  aiSourceFile: null,
+  aiSourceDataUrl: null,
+  aiGeneratedImage: null,
+  miniMaxConfigured: false,
+  aiAbortController: null
 };
+
+function activeBaby() {
+  return BABIES[state.activeBabyId] || BABIES.hehe;
+}
 
 state.countdown = new RecordingCountdown({
   onTick: remaining => {
@@ -136,6 +194,7 @@ const views = {
   timeline: $("#timelineView"),
   devices: $("#devicesView"),
   community: $("#communityView"),
+  search: $("#communitySearchView"),
   profile: $("#profileView"),
   listen: $("#listenView")
 };
@@ -195,6 +254,9 @@ function navigate(name) {
   Object.entries(views).forEach(([key, view]) => view.classList.toggle("active", key === name));
   $$(".bottom-nav [data-nav]").forEach(button => button.classList.toggle("active", button.dataset.nav === name));
   $("#appShell").classList.toggle("flow-active", name === "listen");
+  $("#appShell").classList.toggle("search-active", name === "search");
+  $("#communityComposeButton").classList.toggle("hidden", name !== "community");
+  $("#globalSearchButton").classList.toggle("hidden", name !== "community");
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (name === "timeline") {
     renderTimeline();
@@ -204,6 +266,7 @@ function navigate(name) {
   }
   if (name === "devices") renderDevices();
   if (name === "community") renderCommunity();
+  if (name === "search") renderCommunitySearch();
   if (name === "home") renderHome();
 }
 
@@ -253,10 +316,83 @@ function iconMarkup(type) {
   return `<span class="event-icon ${meta.className}">${meta.icon}</span>`;
 }
 
+function renderBabyContext() {
+  const baby = activeBaby();
+  const avatar = $("#topBabyAvatar");
+  avatar.src = baby.cutout;
+  avatar.alt = `${baby.name}头像`;
+  $("#topBabyName").textContent = baby.name;
+  $("#topBabyAge").textContent = baby.age;
+  $("#homeIntroCopy").textContent = `${baby.name}状态平稳。今天已经记录 ${baby.cryCount} 次哭闹。`;
+  $("#babyStatusCopy").textContent = `已清醒 ${baby.awake}，上次喂养在 ${baby.lastFeed}。`;
+  $("#listenHeroCopy").textContent = `安静听 5 秒，我们先一起确认${baby.name}是否安全。`;
+  $("#quickRecordHelper").textContent = `每一条小记录，都会让我们更懂${baby.name}今天的节奏。`;
+  $("#homeSummaryTitle").textContent = `${baby.name}的一天`;
+  $("#profileIntroCopy").textContent = `照顾宝宝，也照顾每一位一起陪伴${baby.name}的人。`;
+  $("#profileBabyName").textContent = baby.name;
+  $("#profileBabyBirth").textContent = `${baby.ageLong.replaceAll(" ", "")} · ${baby.birthdayShort}`;
+  $("#profileBabyFeedback").textContent = `${baby.feedbackCount} 次有效反馈`;
+  $("#profileBabyImage").src = baby.cutout;
+  $("#profileBabyImage").alt = `${baby.name}宝宝抠图`;
+  $("#profileBabyImage").dataset.babyId = baby.id;
+  $("#personalizationTitle").textContent = `正在一点点了解${baby.name}`;
+  $("#personalizationCount").innerHTML = `${baby.feedbackCount}<small>次反馈</small>`;
+  $("#personalizationMenuCopy").textContent = `看看 CrySense 如何逐渐适应${baby.name}`;
+  $("#logoutBabyCopy").textContent = `${baby.name}在本机的记录会被好好保留`;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let textNode;
+  while ((textNode = walker.nextNode())) {
+    if (textNode.parentElement?.closest("#babySwitchModal, #communityView")) continue;
+    if (/(禾禾|鑫鑫)/.test(textNode.nodeValue || "")) textNode.nodeValue = textNode.nodeValue.replace(/禾禾|鑫鑫/g, baby.name);
+  }
+  $$("[data-baby-id]").forEach(button => {
+    const option = BABIES[button.dataset.babyId];
+    const image = $("img", button);
+    if (option && image) {
+      image.src = option.cutout;
+      image.alt = `${option.name}宝宝照片`;
+    }
+    button.classList.toggle("active", button.dataset.babyId === baby.id);
+  });
+  renderFamilyMemberDetail();
+}
+
+function openBabySwitcher() {
+  renderBabyContext();
+  openModal($("#babySwitchModal"));
+}
+
+function switchBaby(babyId) {
+  if (!BABIES[babyId]) return;
+  state.activeBabyId = babyId;
+  localStorage.setItem(BABY_KEY, babyId);
+  renderBabyContext();
+  renderHome();
+  closeModal($("#babySwitchModal"));
+  showToast(`已切换到${activeBaby().name}，页面内容已同步`);
+}
+
+function renderFamilyMemberDetail() {
+  const member = FAMILY_MEMBERS[state.activeFamilyMemberId] || FAMILY_MEMBERS.dad;
+  $("#familyMemberDetail").innerHTML = `
+    <header class="family-work-head">
+      <img src="${escapeHTML(member.image)}" alt="${escapeHTML(member.name)}头像" width="88" height="88" />
+      <div><p><b>${escapeHTML(member.name)}</b><span>${escapeHTML(member.role)}</span></p><small>上次照护更新：${escapeHTML(member.lastUpdate)}</small></div>
+    </header>
+    <div class="family-work-meta">
+      <p><span><svg class="icon"><use href="#i-swap"/></svg></span><small>最近交接</small><b>${escapeHTML(member.handoff)}</b></p>
+      <p><span><svg class="icon"><use href="#i-mobile"/></svg></span><small>可管理设备</small><b>${escapeHTML(member.devices)}</b></p>
+      <button type="button" data-family-action><svg class="icon"><use href="#i-chat"/></svg>${escapeHTML(member.action)}</button>
+    </div>`;
+  $$("[data-family-member]").forEach(button => button.classList.toggle("active", button.dataset.familyMember === state.activeFamilyMemberId));
+  $("[data-family-action]")?.addEventListener("click", () => showToast(`${member.name}的照护卡已准备`));
+}
+
 function renderHome() {
+  const baby = activeBaby();
   const todayEvents = state.events.filter(event => sameDay(event.at)).sort((a, b) => new Date(b.at) - new Date(a.at));
   const cryEvents = todayEvents.filter(event => event.type === "cry");
-  $("#cryCount").textContent = String(Math.max(3, cryEvents.length));
+  $("#cryCount").textContent = String(Math.max(baby.cryCount, cryEvents.length));
   const analyses = analysisStore.list();
   if (analyses.length) {
     const labels = { hunger: "饥饿", sleepy: "困倦", discomfort: "一般性不适", unclassified: "未分类" };
@@ -707,6 +843,33 @@ function renderInsights() {
   heatmap.innerHTML = intensity.map((level, hour) => `<span class="heat-${level}" title="${hour} 时，${level ? "有哭闹记录" : "暂无记录"}"></span>`).join("");
 }
 
+async function requestMiniMaxCryAnalysis() {
+  $("#recordButton").disabled = true;
+  $("#recordStatus").textContent = "正在提取声音特征并请求 MiniMax 推理";
+  try {
+    const baby = activeBaby();
+    const response = await fetch("/api/minimax/cry-analysis", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        levels: state.levels,
+        safetyScreenPassed: true,
+        context: { babyName: baby.name, age: baby.age, awakeDuration: baby.awake, lastFeed: baby.lastFeed }
+      })
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.message || "MiniMax 服务暂时不可用");
+    const values = [payload.probabilities?.hunger, payload.probabilities?.sleepy, payload.probabilities?.discomfort].map(Number);
+    if (values.some(value => !Number.isFinite(value))) throw new Error("MiniMax 返回格式异常");
+    showResult(values, false);
+    showToast("MiniMax 已基于本机提取的声音特征完成推理；原始音频未上传");
+  } catch (error) {
+    $("#recordStatus").textContent = "MiniMax 暂不可用，正在使用本机规则完成演示";
+    showToast(`${error.message}，已切换为本机演示规则`);
+    runInference("normal", false);
+  }
+}
+
 function finishRecording({ automatic = false } = {}) {
   if (!state.recording) return;
   state.recording = false;
@@ -715,8 +878,8 @@ function finishRecording({ automatic = false } = {}) {
   stopMediaCapture();
   $("#recordButton").classList.remove("recording");
   $("#recordButton").setAttribute("aria-label", "声音已采集，正在分析");
-  $("#recordStatus").textContent = automatic ? "5 秒声音已听完，正在理解禾禾的需要" : "声音已采集，正在分析";
-  runInference("normal", false);
+  $("#recordStatus").textContent = automatic ? `5 秒声音已听完，正在理解${activeBaby().name}的需要` : "声音已采集，正在分析";
+  requestMiniMaxCryAnalysis();
 }
 
 function runInference(mode = "normal", demo = true) {
@@ -974,12 +1137,25 @@ function deviceStateSummary(device) {
   return "状态已同步";
 }
 
+function deviceVisualMarkup(device) {
+  const symbols = {
+    crib: "i-device-crib",
+    light: "i-device-lamp",
+    climate: "i-device-climate",
+    sensor: "i-device-sensor",
+    audio: "i-device-audio",
+    humidifier: "i-device-humidifier"
+  };
+  const symbol = symbols[device.category] || "i-device";
+  return `<span class="device-icon device-icon-${escapeHTML(device.category)}" aria-hidden="true"><svg class="device-visual"><use href="#${symbol}"/></svg></span>`;
+}
+
 function renderDevices() {
   const devices = smartHomeAdapter.listDevices();
   $("#deviceCountLabel").textContent = `${devices.length} 台`;
   $("#deviceList").innerHTML = devices.map(device => `
     <button class="device-row" type="button" data-device-id="${escapeHTML(device.id)}" aria-label="查看${escapeHTML(device.name)}详情">
-      <span class="device-icon">${escapeHTML(device.name.slice(0, 1))}</span>
+      ${deviceVisualMarkup(device)}
       <div><b>${escapeHTML(device.name)}</b><small>${escapeHTML(deviceStateSummary(device))}</small><em>${device.automationEnabled ? "可加入哭因方案" : "已暂停加入方案"}</em></div>
       <span class="device-status ${escapeHTML(device.status)}">${escapeHTML(deviceStatusLabel(device.status))}<i aria-hidden="true">›</i></span>
     </button>`).join("");
@@ -1002,7 +1178,7 @@ function renderDeviceDetail() {
   const device = smartHomeAdapter.listDevices().find(item => item.id === state.activeDeviceId);
   if (!device) return closeModal($("#deviceDetailModal"));
   $("#deviceDetailTitle").textContent = device.name;
-  $("#deviceDetailStatus").innerHTML = `<span class="device-icon">${escapeHTML(device.name.slice(0, 1))}</span><p><b>${escapeHTML(deviceStatusLabel(device.status))}</b><small>模拟设备状态已同步</small></p>`;
+  $("#deviceDetailStatus").innerHTML = `${deviceVisualMarkup(device)}<p><b>${escapeHTML(deviceStatusLabel(device.status))}</b><small>模拟设备状态已同步</small></p>`;
   $("#deviceDetailState").innerHTML = `<small>现在的状态</small><strong>${escapeHTML(deviceStateSummary(device))}</strong><span>${escapeHTML(device.capabilities.map(item => item.type).join("，"))}</span>`;
   $("#deviceAutomationToggle").checked = device.automationEnabled;
 }
@@ -1065,30 +1241,76 @@ function communityTime(iso) {
 function renderCommunity() {
   const posts = communityStore.listPosts(state.communityFilter);
   $("#communityFeed").innerHTML = posts.length ? posts.map(post => `
-    <article class="community-post" data-community-post="${escapeHTML(post.id)}">
-      <header class="community-post-head">
-        <span class="community-avatar">${escapeHTML(post.avatar)}</span>
-        <span><b>${escapeHTML(post.author)}</b><small>${escapeHTML(post.ageBand)}，${escapeHTML(communityTime(post.createdAt))}</small></span>
-        <button class="post-more" type="button" data-report-post="${escapeHTML(post.id)}" aria-label="举报或隐藏这条内容">•••</button>
-      </header>
-      <p>${escapeHTML(post.text)}</p>
-      ${post.image ? `<figure class="community-post-image"><img src="${escapeHTML(post.image)}" alt="${post.aiGenerated ? "AI 艺术创作：穿紫色衣服的卡通宝宝" : "宝宝成长小记演示图片"}" width="512" height="768" /></figure>` : ""}
-      ${post.aiGenerated ? '<p class="ai-disclosure"><span aria-hidden="true">AI</span>AI 艺术创作</p>' : ""}
-      <div class="community-tags">${post.tags.map(tag => `<span>${escapeHTML(tag)}</span>`).join("")}</div>
-      <footer class="community-actions">
-        <button class="${post.liked ? "active" : ""}" type="button" data-post-reaction="warm" data-post-id="${escapeHTML(post.id)}"><span aria-hidden="true">♡</span>抱抱你 ${post.reactions.warm}</button>
-        <button type="button" data-post-reaction="same" data-post-id="${escapeHTML(post.id)}"><span aria-hidden="true">○</span>我们也经历过 ${post.reactions.same}</button>
-        <button class="${post.saved ? "active" : ""}" type="button" data-post-reaction="save" data-post-id="${escapeHTML(post.id)}"><span aria-hidden="true">◇</span>${post.saved ? "已收藏" : "收藏"}</button>
-      </footer>
-    </article>`).join("") : `<div class="community-empty"><span aria-hidden="true">禾</span><h2>这个主题还没有新的分享</h2><p>先把今天的小瞬间留给自己吧。</p><button class="primary-button" type="button" data-empty-moment>记录宝宝</button></div>`;
+    <article class="community-post-card is-${escapeHTML(post.imageAspect || "short")}" data-community-post="${escapeHTML(post.id)}">
+      ${post.image ? `<figure class="community-post-image"><img src="${escapeHTML(post.image)}" alt="${escapeHTML(post.imageAlt || "宝宝成长场景")}" width="720" height="900" />${post.live ? '<span class="community-live-badge">直播中</span>' : ""}</figure>` : ""}
+      <div class="community-post-body">
+        ${post.sponsored ? '<span class="sponsored-label">品牌合作</span>' : ""}
+        <p>${escapeHTML(post.text)}</p>
+        ${post.aiGenerated ? '<span class="ai-disclosure">AI 创作</span>' : ""}
+        <div class="community-post-meta">
+          <img src="${escapeHTML(post.avatarImage || activeBaby().image)}" alt="${escapeHTML(post.author)}头像" width="64" height="64" />
+          <span>${escapeHTML(post.author)}</span>
+          <button class="${post.liked ? "active" : ""}" type="button" data-post-reaction="warm" data-post-id="${escapeHTML(post.id)}" aria-label="喜欢这条内容"><svg class="icon" aria-hidden="true"><use href="#i-soothing"/></svg>${post.reactions.warm}</button>
+        </div>
+      </div>
+    </article>`).join("") : `<div class="community-empty"><span aria-hidden="true"><img src="${escapeHTML(activeBaby().image)}" alt="" /></span><h2>这个主题还没有新的分享</h2><p>先把今天的小瞬间留给自己吧。</p><button class="primary-button" type="button" data-empty-moment>记录宝宝</button></div>`;
 
-  $$('[data-post-reaction="warm"], [data-post-reaction="save"]').forEach(button => button.addEventListener("click", () => {
-    communityStore.setPostReaction(button.dataset.postId, button.dataset.postReaction);
+  $$('[data-post-reaction="warm"]').forEach(button => button.addEventListener("click", () => {
+    communityStore.setPostReaction(button.dataset.postId, "warm");
     renderCommunity();
   }));
-  $$('[data-post-reaction="same"]').forEach(button => button.addEventListener("click", () => showToast("谢谢你的回应，这份理解已经送达")));
-  $$('[data-report-post]').forEach(button => button.addEventListener("click", () => showToast("已隐藏这条内容，举报流程将在社区 Beta 中接入")));
   $("[data-empty-moment]")?.addEventListener("click", openMomentComposer);
+}
+
+const SEARCH_SUGGESTIONS = ["睡眠倒退期", "宝宝抬头练习", "夜间喂养", "婴儿睡袋", "辅食工具", "周末亲子活动"];
+
+function openCommunitySearch() {
+  state.searchReturnView = state.view === "search" ? "community" : state.view;
+  state.communityQuery = "";
+  $("#communitySearch").value = "";
+  navigate("search");
+  setTimeout(() => $("#communitySearch").focus(), 120);
+}
+
+function closeCommunitySearch() {
+  navigate(state.searchReturnView === "search" ? "community" : state.searchReturnView);
+}
+
+function renderCommunitySearch() {
+  const history = state.communitySearchHistory.slice(0, 6);
+  $("#searchHistoryChips").innerHTML = history.length
+    ? history.map(term => `<button type="button" data-search-term="${escapeHTML(term)}">${escapeHTML(term)}</button>`).join("")
+    : `<p class="search-empty-copy">还没有搜索记录</p>`;
+  $("#searchSuggestionGrid").innerHTML = SEARCH_SUGGESTIONS.map(term => `<button type="button" data-search-term="${escapeHTML(term)}">${escapeHTML(term)}</button>`).join("");
+  $$("[data-search-term]").forEach(button => button.addEventListener("click", () => {
+    $("#communitySearch").value = button.dataset.searchTerm;
+    performCommunitySearch(button.dataset.searchTerm);
+  }));
+  const hasQuery = Boolean(state.communityQuery);
+  $("#communitySearchHistory").classList.toggle("hidden", hasQuery);
+  $("#communitySearchSuggestions").classList.toggle("hidden", hasQuery);
+  $("#communitySearchResults").classList.toggle("hidden", !hasQuery);
+  if (hasQuery) renderCommunitySearchResults();
+}
+
+function performCommunitySearch(rawQuery) {
+  const query = String(rawQuery || "").trim();
+  if (!query) return;
+  state.communityQuery = query;
+  state.communitySearchHistory = [query, ...state.communitySearchHistory.filter(term => term !== query)].slice(0, 8);
+  localStorage.setItem("crysense-community-search-v1", JSON.stringify(state.communitySearchHistory));
+  renderCommunitySearch();
+}
+
+function renderCommunitySearchResults() {
+  const query = state.communityQuery.toLowerCase();
+  const posts = communityStore.listPosts("all").filter(post => [post.text, post.author, post.ageBand, ...(post.tags || [])].join(" ").toLowerCase().includes(query));
+  $("#searchResultCount").textContent = `${posts.length} 条相关内容`;
+  $("#searchResultList").innerHTML = posts.length ? posts.map(post => `
+    <article class="search-result-card">
+      <img src="${escapeHTML(post.image || post.avatarImage || activeBaby().image)}" alt="${escapeHTML(post.imageAlt || post.author)}" width="160" height="160" />
+      <div>${post.sponsored ? '<small class="sponsored-label">品牌合作</small>' : `<small>${escapeHTML(post.author)}</small>`}<p>${escapeHTML(post.text)}</p><span>${(post.tags || []).slice(0, 2).map(tag => `#${escapeHTML(tag)}`).join(" · ")}</span></div>
+    </article>`).join("") : `<div class="search-no-result"><svg class="icon"><use href="#i-search"/></svg><h2>没有找到相关内容</h2><p>换一个关键词试试，比如“睡眠”或“辅食”。</p></div>`;
 }
 
 function renderMockPhotoPicker() {
@@ -1109,7 +1331,8 @@ function openMomentComposer() {
 
 function openCommunityPublishConfirmation(moment) {
   state.pendingMomentId = moment.id;
-  $("#communityPublishPreview").innerHTML = `<b>禾禾爸爸，4-6 个月</b><p>${escapeHTML(moment.text)}</p><small>不会公开完整生日、位置或家庭信息</small>`;
+  const baby = activeBaby();
+  $("#communityPublishPreview").innerHTML = `<b>${baby.name}爸爸，${baby.ageBand}</b><p>${escapeHTML(moment.text)}</p><small>不会公开完整生日、位置或家庭信息</small>`;
   openModal($("#communityPublishModal"));
 }
 
@@ -1124,7 +1347,8 @@ function submitMoment(event) {
     text,
     visibility: requestedVisibility === MOMENT_VISIBILITY.COMMUNITY ? MOMENT_VISIBILITY.PRIVATE : requestedVisibility,
     hasMockPhoto: state.momentHasMockPhoto,
-    linkedTimelineEventIds: linkedEventId ? [linkedEventId] : []
+    linkedTimelineEventIds: linkedEventId ? [linkedEventId] : [],
+    babyProfileId: activeBaby().profileId
   });
   if (linkedEventId) {
     state.events.unshift({
@@ -1151,11 +1375,17 @@ function resetAIStudio() {
   state.aiStyle = AI_ART_STYLE.STICKER;
   state.aiJobId = null;
   state.aiResultSelection = 0;
-  $("#aiSourceTitle").textContent = "选择演示照片";
-  $("#aiSourceDescription").textContent = "轻触后即可体验完整创作流程";
+  state.aiSourceFile = null;
+  state.aiSourceDataUrl = null;
+  state.aiGeneratedImage = null;
+  $("#aiPhotoInput").value = "";
+  $("#aiUploadConsent").checked = false;
+  $("#aiPhotoPreview").src = "assets/community-feature-arched.webp";
+  $("#aiSourceTitle").textContent = "拍摄或选择一张照片";
+  $("#aiSourceDescription").textContent = "支持 JPG、PNG、WebP，建议主体清晰";
   $$('[data-ai-style]').forEach(button => button.classList.toggle("active", button.dataset.aiStyle === AI_ART_STYLE.STICKER));
   $("#aiGenerationState").className = "ai-generation-state empty";
-  $("#aiGenerationState").innerHTML = "<p>选好演示照片和风格后，就可以开始创作。</p>";
+  $("#aiGenerationState").innerHTML = "<p>选好照片和风格后，就可以开始创作。</p>";
   $("#startAIGenerationButton").classList.remove("hidden");
   $("#startAIGenerationButton").disabled = true;
   $("#saveAIArtworkButton").classList.add("hidden");
@@ -1163,17 +1393,56 @@ function resetAIStudio() {
   $("#cancelAIGenerationButton").classList.add("hidden");
 }
 
+async function checkMiniMaxStatus() {
+  const box = $("#miniMaxStatus");
+  try {
+    const response = await fetch("/api/minimax/status");
+    const status = await response.json();
+    state.miniMaxConfigured = Boolean(status.imageConfigured);
+    box.classList.toggle("unavailable", !state.miniMaxConfigured);
+    $("b", box).textContent = state.miniMaxConfigured ? "MiniMax 图像服务已连接" : "MiniMax 图像服务待配置";
+    $("small", box).textContent = state.miniMaxConfigured ? "照片会在你明确同意后，仅用于本次生成。" : "请在部署环境的安全变量中配置 MINIMAX_API_KEY。";
+  } catch {
+    state.miniMaxConfigured = false;
+    $("b", box).textContent = "暂时无法连接 MiniMax";
+    $("small", box).textContent = "请确认已通过 npm run dev 启动本地服务。";
+  }
+  updateAIGenerationAvailability();
+}
+
 function openAIStudio() {
   resetAIStudio();
   openModal($("#aiArtModal"));
+  checkMiniMaxStatus();
 }
 
-function selectDemoPhoto() {
+function updateAIGenerationAvailability() {
+  $("#startAIGenerationButton").disabled = !(state.aiSourceSelected && $("#aiUploadConsent").checked && state.miniMaxConfigured);
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function selectAIPhoto(event) {
+  const file = event.currentTarget.files?.[0];
+  if (!file) return;
+  if (file.size > 8 * 1024 * 1024) {
+    event.currentTarget.value = "";
+    return showToast("照片请控制在 8 MB 以内");
+  }
+  state.aiSourceFile = file;
+  state.aiSourceDataUrl = await readFileAsDataURL(file);
   state.aiSourceSelected = true;
-  $("#aiSourceTitle").textContent = "禾禾的演示照片已准备好";
-  $("#aiSourceDescription").textContent = "只使用应用内预制素材，不会访问本机相册";
-  $("#startAIGenerationButton").disabled = false;
-  showToast("演示照片已准备好，不会读取本机相册");
+  $("#aiPhotoPreview").src = state.aiSourceDataUrl;
+  $("#aiSourceTitle").textContent = `${activeBaby().name}的照片已准备好`;
+  $("#aiSourceDescription").textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+  updateAIGenerationAvailability();
 }
 
 function styleLabel(style) {
@@ -1187,51 +1456,66 @@ function styleLabel(style) {
 function renderAIArtworkResults() {
   const label = styleLabel(state.aiStyle);
   $("#aiGenerationState").className = `ai-generation-state completed style-${state.aiStyle}`;
-  $("#aiGenerationState").innerHTML = `<p><b>${escapeHTML(label)}已经画好</b><span>选择更喜欢的一张，先私密保存。</span></p><div class="ai-result-grid">
-    <button class="active" type="button" data-ai-result="0"><span><img src="assets/crysense-baby-listening.webp" alt="${escapeHTML(label)}候选一" width="512" height="768" /></span><b>柔和紫</b></button>
-    <button type="button" data-ai-result="1"><span><img src="assets/crysense-baby-listening.webp" alt="${escapeHTML(label)}候选二" width="512" height="768" /></span><b>薄荷光</b></button>
-  </div>`;
-  $$('[data-ai-result]').forEach(button => button.addEventListener("click", () => {
-    state.aiResultSelection = Number(button.dataset.aiResult);
-    $$('[data-ai-result]').forEach(item => item.classList.toggle("active", item === button));
-  }));
+  $("#aiGenerationState").innerHTML = `<p><b>${escapeHTML(label)}已经画好</b><span>由 MiniMax 生成，先私密保存再决定是否分享。</span></p><div class="ai-result-grid single"><button class="active" type="button"><span><img src="${escapeHTML(state.aiGeneratedImage)}" alt="${escapeHTML(label)}生成结果" width="720" height="900" /></span><b>${escapeHTML(label)}</b></button></div>`;
   $("#startAIGenerationButton").classList.add("hidden");
   $("#cancelAIGenerationButton").classList.add("hidden");
   $("#saveAIArtworkButton").classList.remove("hidden");
   $("#retryAIArtworkButton").classList.remove("hidden");
 }
 
-function startAIGeneration() {
-  if (!state.aiSourceSelected) return;
-  const job = communityStore.createArtworkJob(state.aiStyle);
+async function startAIGeneration() {
+  if (!state.aiSourceSelected || !$("#aiUploadConsent").checked) return;
+  const job = communityStore.createArtworkJob(state.aiStyle, { provider: "minimax", sourceAssetId: state.aiSourceFile?.name || "uploaded-photo" });
   state.aiJobId = job.id;
   communityStore.updateArtworkJob(job.id, AI_JOB_STATUS.GENERATING);
   $("#aiGenerationState").className = "ai-generation-state generating";
-  $("#aiGenerationState").innerHTML = '<div class="art-skeleton"><i></i><span></span></div><p><b>正在把这张照片轻轻画成小作品</b><span>可以随时取消，演示素材不会离开本机。</span></p>';
+  $("#aiGenerationState").innerHTML = '<div class="art-skeleton"><i></i><span></span></div><p><b>MiniMax 正在把照片画成小作品</b><span>通常需要几十秒，可以随时取消。</span></p>';
   $("#startAIGenerationButton").classList.add("hidden");
   $("#cancelAIGenerationButton").classList.remove("hidden");
-  state.aiGenerationTimer = setTimeout(() => {
-    communityStore.updateArtworkJob(job.id, AI_JOB_STATUS.COMPLETED, { outputAssetIds: [`mock-${state.aiStyle}-a`, `mock-${state.aiStyle}-b`] });
-    state.aiGenerationTimer = null;
+  state.aiAbortController = new AbortController();
+  try {
+    const response = await fetch("/api/minimax/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: state.aiAbortController.signal,
+      body: JSON.stringify({ imageDataUrl: state.aiSourceDataUrl, style: state.aiStyle, babyName: activeBaby().name, consent: true })
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.images?.[0]) throw new Error(payload.message || "生成服务暂时不可用");
+    state.aiGeneratedImage = payload.images[0];
+    communityStore.updateArtworkJob(job.id, AI_JOB_STATUS.COMPLETED, { outputAssetIds: payload.images });
     renderAIArtworkResults();
-  }, 1100);
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    communityStore.updateArtworkJob(job.id, AI_JOB_STATUS.FAILED, { errorCode: error.message });
+    $("#aiGenerationState").className = "ai-generation-state empty";
+    $("#aiGenerationState").innerHTML = `<p><b>这次没有生成成功</b><span>${escapeHTML(error.message)}</span></p>`;
+    $("#startAIGenerationButton").classList.remove("hidden");
+    updateAIGenerationAvailability();
+    $("#cancelAIGenerationButton").classList.add("hidden");
+  } finally {
+    state.aiAbortController = null;
+  }
 }
 
 function cancelAIGeneration() {
+  state.aiAbortController?.abort();
   clearTimeout(state.aiGenerationTimer);
   state.aiGenerationTimer = null;
   if (state.aiJobId) communityStore.updateArtworkJob(state.aiJobId, AI_JOB_STATUS.CANCELLED);
   closeModal($("#aiArtModal"));
-  showToast("创作已取消，演示照片没有被保存");
+  showToast("创作已取消，本次结果没有被保存");
 }
 
 function saveAIArtwork() {
   if (!state.aiJobId || communityStore.getArtworkJob(state.aiJobId)?.status !== AI_JOB_STATUS.COMPLETED) return;
   communityStore.saveMoment({
-    text: `禾禾的${styleLabel(state.aiStyle)}，今天也替你收好了。`,
+    text: `${activeBaby().name}的${styleLabel(state.aiStyle)}，今天也替你收好了。`,
     visibility: MOMENT_VISIBILITY.PRIVATE,
     hasMockPhoto: true,
-    aiArtworkId: state.aiJobId
+    aiArtworkId: state.aiJobId,
+    babyProfileId: activeBaby().profileId,
+    generatedImage: state.aiGeneratedImage
   });
   closeModal($("#aiArtModal"));
   renderCommunity();
@@ -1244,19 +1528,20 @@ function retryAIArtwork() {
   $("#aiGenerationState").className = "ai-generation-state empty";
   $("#aiGenerationState").innerHTML = "<p>可以换一种风格，再画一次。</p>";
   $("#startAIGenerationButton").classList.remove("hidden");
-  $("#startAIGenerationButton").disabled = !state.aiSourceSelected;
+  updateAIGenerationAvailability();
   $("#saveAIArtworkButton").classList.add("hidden");
   $("#retryAIArtworkButton").classList.add("hidden");
 }
 
 function closeAIStudio() {
-  if (state.aiGenerationTimer) return cancelAIGeneration();
+  if (state.aiGenerationTimer || state.aiAbortController) return cancelAIGeneration();
   closeModal($("#aiArtModal"));
 }
 
 function confirmCommunityPublish() {
   if (!state.pendingMomentId) return;
-  communityStore.publishMoment(state.pendingMomentId);
+  const baby = activeBaby();
+  communityStore.publishMoment(state.pendingMomentId, { author: `${baby.name}爸爸`, avatarImage: baby.image, ageBand: baby.ageBand });
   state.pendingMomentId = null;
   closeModal($("#communityPublishModal"));
   renderCommunity();
@@ -1277,6 +1562,7 @@ function initializeDate() {
 
 function renderEverything() {
   initializeDate();
+  renderBabyContext();
   renderHome();
   renderTimeline();
   renderAnalysisHistory();
@@ -1308,8 +1594,40 @@ $$('[data-timeline-segment]').forEach(button => button.addEventListener("click",
 $$('[data-back-home]').forEach(button => button.addEventListener("click", () => navigate("home")));
 $("#listenHero").addEventListener("click", () => { navigate("listen"); resetSafetyFlow(); });
 $("#homeSmartCard").addEventListener("click", () => navigate("devices"));
-[$("#communityAddButton"), $("#openMomentComposer")].forEach(button => button.addEventListener("click", openMomentComposer));
-$("#openAIStudio").addEventListener("click", openAIStudio);
+$("#babySwitch").addEventListener("click", openBabySwitcher);
+$("#globalSearchButton").addEventListener("click", openCommunitySearch);
+$("#closeCommunitySearch").addEventListener("click", closeCommunitySearch);
+$("#communitySearchForm").addEventListener("submit", event => {
+  event.preventDefault();
+  performCommunitySearch($("#communitySearch").value);
+});
+$("#clearSearchHistory").addEventListener("click", () => {
+  state.communitySearchHistory = [];
+  localStorage.setItem("crysense-community-search-v1", "[]");
+  renderCommunitySearch();
+});
+$("#closeBabySwitchModal").addEventListener("click", () => closeModal($("#babySwitchModal")));
+$$('[data-baby-id]').forEach(button => button.addEventListener("click", () => switchBaby(button.dataset.babyId)));
+$$('[data-family-member]').forEach(button => button.addEventListener("click", () => { state.activeFamilyMemberId = button.dataset.familyMember; renderFamilyMemberDetail(); }));
+$("#communityComposeButton").addEventListener("click", () => openModal($("#communityComposeModal")));
+$("#closeCommunityCompose").addEventListener("click", () => closeModal($("#communityComposeModal")));
+$$('[data-compose-action]').forEach(button => button.addEventListener("click", () => {
+  const action = button.dataset.composeAction;
+  closeModal($("#communityComposeModal"));
+  if (action === "note") return openMomentComposer();
+  openAIStudio();
+  $("#aiPhotoInput").removeAttribute("capture");
+}));
+$$('[data-community-shortcut]').forEach(button => button.addEventListener("click", () => {
+  showToast(`${$("small", button).textContent}功能正在准备中`);
+}));
+$("#campaignCarousel").addEventListener("scroll", event => {
+  const carousel = event.currentTarget;
+  const step = carousel.firstElementChild?.getBoundingClientRect().width + 12 || 1;
+  const index = Math.max(0, Math.min(2, Math.round(carousel.scrollLeft / step)));
+  $$(".campaign-dots i").forEach((dot, dotIndex) => dot.classList.toggle("active", dotIndex === index));
+}, { passive: true });
+$$('[data-campaign]').forEach(button => button.addEventListener("click", () => showToast("活动详情已准备，报名会在提交前再次确认")));
 $("#closeMomentModal").addEventListener("click", () => closeModal($("#momentModal")));
 $("#momentText").addEventListener("input", event => { $("#momentCharacterCount").textContent = String(event.currentTarget.value.length); });
 $("#addMockPhotoButton").addEventListener("click", () => { state.momentHasMockPhoto = !state.momentHasMockPhoto; renderMockPhotoPicker(); });
@@ -1320,7 +1638,8 @@ $$('[data-community-filter]').forEach(button => button.addEventListener("click",
   renderCommunity();
 }));
 $("#closeAIArtModal").addEventListener("click", closeAIStudio);
-$("#selectDemoPhotoButton").addEventListener("click", selectDemoPhoto);
+$("#aiPhotoInput").addEventListener("change", selectAIPhoto);
+$("#aiUploadConsent").addEventListener("change", updateAIGenerationAvailability);
 $$('[data-ai-style]').forEach(button => button.addEventListener("click", () => {
   state.aiStyle = button.dataset.aiStyle;
   $$('[data-ai-style]').forEach(item => item.classList.toggle("active", item === button));
@@ -1416,7 +1735,6 @@ $("#logoutButton").addEventListener("click", () => {
 });
 
 const simpleToasts = {
-  babySwitch: "多宝宝切换将在后续版本开放",
   handoffButton: "过去 6 小时照护摘要已准备",
   probabilityInfo: "概率来自声音和上下文的模拟结果，不代表医学诊断",
   editProfileButton: "宝宝档案编辑将在下一迭代开放",
@@ -1430,7 +1748,7 @@ const simpleToasts = {
 };
 Object.entries(simpleToasts).forEach(([id, message]) => $(`#${id}`)?.addEventListener("click", () => showToast(message)));
 
-[$("#logModal"), $("#observeModal"), $("#automationConfirmModal"), $("#permissionModal"), $("#deviceDetailModal"), $("#momentModal"), $("#aiArtModal"), $("#communityPublishModal")].forEach(modal => {
+[$("#logModal"), $("#observeModal"), $("#automationConfirmModal"), $("#permissionModal"), $("#deviceDetailModal"), $("#babySwitchModal"), $("#communityComposeModal"), $("#momentModal"), $("#aiArtModal"), $("#communityPublishModal")].forEach(modal => {
   modal.addEventListener("click", event => {
     if (event.target !== modal) return;
     if (modal === $("#automationConfirmModal")) declineAutomation("sheet_dismissed");
@@ -1454,3 +1772,9 @@ document.addEventListener("keydown", event => {
 
 renderEverything();
 setTimeout(showPostLaunchDestination, 1200);
+
+if ("serviceWorker" in navigator && window.location.protocol === "https:") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}

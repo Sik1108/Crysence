@@ -28,13 +28,22 @@ test("community filters return same-age and topic-specific posts", () => {
   assert.ok(store.listPosts("sleep").every(post => post.topic === "sleep"));
 });
 
-test("mock AI artwork follows an explicit queued, generating and completed lifecycle", () => {
+test("community seed uses varied scene images instead of one repeated baby asset", () => {
+  const posts = new CommunityStore(new CommunityMemoryStorage()).listPosts();
+  const images = posts.map(post => post.image).filter(Boolean);
+
+  assert.ok(images.length >= 5);
+  assert.equal(new Set(images).size, images.length);
+  assert.ok(posts.every(post => post.imageAlt));
+});
+
+test("MiniMax AI artwork follows an explicit queued, generating and completed lifecycle", () => {
   const store = new CommunityStore(new CommunityMemoryStorage());
   const job = store.createArtworkJob(AI_ART_STYLE.PICTURE_BOOK);
 
   assert.equal(job.status, AI_JOB_STATUS.QUEUED);
-  assert.equal(job.provider, "mock");
-  assert.equal(job.consentMode, "mock_no_upload");
+  assert.equal(job.provider, "minimax");
+  assert.equal(job.consentMode, "explicit_single_generation");
 
   store.updateArtworkJob(job.id, AI_JOB_STATUS.GENERATING);
   const completed = store.updateArtworkJob(job.id, AI_JOB_STATUS.COMPLETED, { outputAssetIds: ["mock-a", "mock-b"] });
@@ -42,4 +51,13 @@ test("mock AI artwork follows an explicit queued, generating and completed lifec
   assert.deepEqual(completed.outputAssetIds, ["mock-a", "mock-b"]);
   assert.ok(completed.completedAt);
   assert.match(completed.medicalUsePolicy, /excluded_from_cry_classification/);
+});
+
+test("community seeds use image avatars and include two live cards", () => {
+  const posts = new CommunityStore(new CommunityMemoryStorage()).listPosts();
+  assert.ok(posts.every(post => post.avatarImage?.startsWith("assets/")));
+  assert.equal(posts.filter(post => post.live).length, 2);
+  assert.ok(posts.some(post => post.live && post.commerce));
+  assert.ok(posts.length >= 9);
+  assert.ok(posts.some(post => post.sponsored && post.author.includes("babycare")));
 });

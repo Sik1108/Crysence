@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">CrySense</title>
+  <desc id="desc">紫色圆角底上的宝宝哭声与拥抱符号</desc>
+  <rect width="512" height="512" rx="116" fill="#6e55b8"/>
+  <circle cx="256" cy="247" r="154" fill="#f7f2ff" opacity=".14"/>
+  <path d="M125 268c36-67 79-100 131-100 52 0 95 33 131 100" fill="none" stroke="#fff" stroke-width="34" stroke-linecap="round"/>
+  <path d="M150 314c31-45 66-68 106-68 40 0 75 23 106 68" fill="none" stroke="#d9caff" stroke-width="30" stroke-linecap="round"/>
+  <circle cx="196" cy="223" r="15" fill="#fff"/>
+  <circle cx="316" cy="223" r="15" fill="#fff"/>
+  <path d="M226 298c18 17 42 17 60 0" fill="none" stroke="#fff" stroke-width="19" stroke-linecap="round"/>
+  <path d="m388 116 8 24 24 8-24 8-8 24-8-24-24-8 24-8 8-24Z" fill="#d6ff9b"/>
+</svg>
