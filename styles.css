@@ -4590,10 +4590,10 @@ main {
 .ai-reference-delete {
   position: absolute;
   z-index: 2;
-  top: -2px;
-  right: -2px;
-  width: 16px;
-  height: 16px;
+  top: -1px;
+  right: -1px;
+  width: 13px;
+  height: 13px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -4602,12 +4602,12 @@ main {
   background: #3d2a58;
   color: #fff;
   box-shadow: 0 5px 12px rgba(46, 29, 70, .2);
-  font-size: 11px;
+  font-size: 9px;
   line-height: 1;
 }
 
 .ai-reference-delete.hidden { display: none; }
-.ai-reference-delete::after { content: ""; position: absolute; inset: -14px; }
+.ai-reference-delete::after { content: ""; position: absolute; inset: -16px; }
 
 .ai-reference-heading {
   display: flex;
