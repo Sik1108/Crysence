@@ -4590,10 +4590,10 @@ main {
 .ai-reference-delete {
   position: absolute;
   z-index: 2;
-  top: -9px;
-  right: -9px;
-  width: 30px;
-  height: 30px;
+  top: -6px;
+  right: -6px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -4602,11 +4602,12 @@ main {
   background: #3d2a58;
   color: #fff;
   box-shadow: 0 5px 12px rgba(46, 29, 70, .2);
-  font-size: 20px;
+  font-size: 16px;
   line-height: 1;
 }
 
 .ai-reference-delete.hidden { display: none; }
+.ai-reference-delete::after { content: ""; position: absolute; inset: -8px; }
 
 .ai-reference-heading {
   display: flex;
