@@ -40,7 +40,7 @@ const styleConfigs = {
   },
   comic: {
     aspectRatio: "3:4",
-    prompt: "Reference image 1 is the identity source: preserve only that baby's exact identity, infant age, facial structure, hairstyle and recognizable expression. Reference image 2 is the style source only: analyze and reproduce its line quality, brush texture, color palette, shape simplification, head-to-body proportion, shading method, edge treatment and background treatment. Do not copy the person, face, clothes, pose, symbols or text from reference image 2. Redraw the baby from reference image 1 as one coherent finished artwork in the visual language of reference image 2, with a single centered subject, clean composition and no split screen, no before-and-after layout, no collage, no captions, no watermark."
+    prompt: "Reference image 1 is a two-panel reference board. The LEFT panel is the identity source: preserve that baby's exact identity, infant age, facial structure, hairstyle and recognizable expression. The RIGHT panel is the style source only: reproduce its line quality, brush texture, color palette, shape simplification, head-to-body proportion, shading method, edge treatment and background treatment. Never copy the person, face, clothes, pose, symbols or text from the right panel. Create one coherent finished portrait of the baby from the left panel in the visual language of the right panel. Output only the finished artwork: one centered baby, no split screen, no reference board, no before-and-after layout, no collage, no captions and no watermark."
   }
 };
 
@@ -142,15 +142,12 @@ async function handleImageGeneration(request, response) {
   const body = await readJson(request, 24 * 1024 * 1024);
   if (body.consent !== true) return writeJson(response, 400, { message: "需要明确同意本次照片上传生成。" });
   const style = styleConfigs[body.style] ? body.style : "sticker";
-  const identityImage = parseImageDataUrl(body.imageDataUrl, "宝宝照片");
-  const styleImage = style === "comic" ? parseImageDataUrl(body.styleReferenceDataUrl, "风格参考图") : null;
+  const referenceImage = parseImageDataUrl(body.imageDataUrl, style === "comic" ? "合成参考图" : "宝宝照片");
   const sourceDir = path.join(runtimeRoot, "uploads");
   await mkdir(sourceDir, { recursive: true });
-  const identitySource = await persistReferenceImage(identityImage, sourceDir);
-  const styleSource = styleImage ? await persistReferenceImage(styleImage, sourceDir) : null;
+  const identitySource = await persistReferenceImage(referenceImage, sourceDir);
   const subjectReference = [
-    { type: "character", image_file: `${publicBase}/runtime/uploads/${identitySource.sourceName}` },
-    ...(styleSource ? [{ type: "character", image_file: `${publicBase}/runtime/uploads/${styleSource.sourceName}` }] : [])
+    { type: "character", image_file: `${publicBase}/runtime/uploads/${identitySource.sourceName}` }
   ];
   const config = styleConfigs[style];
   let payload;
@@ -165,10 +162,7 @@ async function handleImageGeneration(request, response) {
       prompt_optimizer: false
     });
   } finally {
-    await Promise.all([
-      unlink(identitySource.sourcePath).catch(() => {}),
-      styleSource ? unlink(styleSource.sourcePath).catch(() => {}) : Promise.resolve()
-    ]);
+    await unlink(identitySource.sourcePath).catch(() => {});
   }
 
   const encoded = payload.data?.image_base64?.[0] || payload.data?.images?.[0]?.base64 || payload.images?.[0]?.base64;

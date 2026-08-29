@@ -1439,6 +1439,40 @@ function readFileAsDataURL(file) {
   });
 }
 
+function loadAIReferenceImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("参考图读取失败，请重新选择图片"));
+    image.src = dataUrl;
+  });
+}
+
+function drawAIReferencePanel(context, image, x, y, width, height) {
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const sourceWidth = width / scale;
+  const sourceHeight = height / scale;
+  const sourceX = (image.naturalWidth - sourceWidth) / 2;
+  const sourceY = (image.naturalHeight - sourceHeight) / 2;
+  context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
+}
+
+async function buildAIStyleReferenceBoard(identityDataUrl, styleDataUrl) {
+  const [identityImage, styleImage] = await Promise.all([
+    loadAIReferenceImage(identityDataUrl),
+    loadAIReferenceImage(styleDataUrl)
+  ]);
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = 1024;
+  const context = canvas.getContext("2d", { alpha: false });
+  context.fillStyle = "#f4efff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  drawAIReferencePanel(context, identityImage, 0, 0, 1008, 1024);
+  drawAIReferencePanel(context, styleImage, 1040, 0, 1008, 1024);
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
 async function selectAIPhoto(event) {
   const file = event.currentTarget.files?.[0];
   if (!file) return;
@@ -1513,13 +1547,15 @@ async function startAIGeneration() {
   $("#cancelAIGenerationButton").classList.remove("hidden");
   state.aiAbortController = new AbortController();
   try {
+    const generationReferenceDataUrl = state.aiStyle === AI_ART_STYLE.COMIC
+      ? await buildAIStyleReferenceBoard(state.aiSourceDataUrl, state.aiStyleReferenceDataUrl)
+      : state.aiSourceDataUrl;
     const response = await fetch("/api/minimax/image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: state.aiAbortController.signal,
       body: JSON.stringify({
-        imageDataUrl: state.aiSourceDataUrl,
-        styleReferenceDataUrl: state.aiStyle === AI_ART_STYLE.COMIC ? state.aiStyleReferenceDataUrl : null,
+        imageDataUrl: generationReferenceDataUrl,
         style: state.aiStyle,
         babyName: activeBaby().name,
         consent: true

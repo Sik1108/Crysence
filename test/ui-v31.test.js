@@ -106,10 +106,13 @@ test("AI studio separates fixed styles from user-supplied style reference", () =
   assert.match(html, /class="style-swatch sticker"><img src="assets\/ai-art-sticker\.webp"/);
   assert.match(html, /class="style-swatch picture-book"><img src="assets\/ai-art-picturebook\.webp"/);
   assert.match(html, /class="style-swatch comic"><img[\s\S]*?<img/);
-  assert.match(app, /styleReferenceDataUrl:/);
+  assert.match(app, /aiStyleReferenceDataUrl:\s*null/);
   assert.match(app, /state\.aiStyle !== AI_ART_STYLE\.COMIC \|\| Boolean\(state\.aiStyleReferenceDataUrl\)/);
+  assert.match(app, /buildAIStyleReferenceBoard\(state\.aiSourceDataUrl, state\.aiStyleReferenceDataUrl\)/);
   assert.match(server, /photorealistic Korean-style giant-head photo sticker/);
   assert.match(server, /hand-drawn children's picture-book character/);
-  assert.match(server, /Reference image 2 is the style source only/);
+  assert.match(server, /Reference image 1 is a two-panel reference board/);
+  assert.doesNotMatch(server, /styleSource|styleReferenceDataUrl/);
+  assert.match(server, /subjectReference = \[\s*\{ type: "character", image_file:[\s\S]*?\}\s*\];/);
   assert.match(server, /prompt_optimizer:\s*false/);
 });
