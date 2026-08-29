@@ -36,9 +36,26 @@ const styleConfigs = {
   },
   comic: {
     aspectRatio: "3:4",
-    prompt: "Reference image 1 is a two-panel reference board. The LEFT panel is the identity source: preserve that baby's exact identity, infant age, facial structure, hairstyle and recognizable expression. The RIGHT panel is the style source only: reproduce its line quality, brush texture, color palette, shape simplification, head-to-body proportion, shading method, edge treatment and background treatment. Never copy the person, face, clothes, pose, symbols or text from the right panel. Create one coherent finished portrait of the baby from the left panel in the visual language of the right panel. Output only the finished artwork: one centered baby, no split screen, no reference board, no before-and-after layout, no collage, no captions and no watermark."
+    prompt: "Reference image 1 is a two-panel reference board with a narrow identity panel on the LEFT and a deliberately larger style panel on the RIGHT. Preserve the baby's identity, infant age, facial structure and recognizable expression from the left panel. Treat the entire right panel as the dominant and mandatory visual-style target. Match its medium, line quality, brush texture, dominant palette, saturation, contrast, shape simplification, shading, edge treatment and background treatment so the family can immediately recognize the uploaded reference style. Never copy the person, face, clothes, pose, symbols or text from the right panel. Output only one coherent finished portrait of the baby: no split screen, no reference board, no before-and-after layout, no collage, no captions and no watermark."
   }
 };
+
+function buildMeasuredStyleGuidance(signals) {
+  if (!signals || typeof signals !== "object") return "";
+  const options = {
+    brightness: { light: "high-key and luminous", balanced: "mid-key and balanced", dark: "deep-toned and shadow-rich" },
+    saturation: { vivid: "vividly saturated", balanced: "moderately saturated", muted: "muted and restrained" },
+    contrast: { strong: "strong contrast", balanced: "moderate contrast", soft: "soft low contrast" },
+    temperature: { warm: "warm color temperature", neutral: "neutral color temperature", cool: "cool color temperature" },
+    edges: { crisp: "crisp graphic edges", textured: "visibly textured edges", soft: "soft blended edges" }
+  };
+  const descriptors = Object.entries(options).map(([key, choices]) => choices[signals[key]]).filter(Boolean);
+  const palette = Array.isArray(signals.palette)
+    ? signals.palette.filter(color => /^#[0-9a-f]{6}$/i.test(color)).slice(0, 5)
+    : [];
+  if (!descriptors.length && !palette.length) return "";
+  return ` Measured properties of the uploaded style reference are: ${descriptors.join(", ")}${palette.length ? `; dominant palette ${palette.join(", ")}` : ""}. Treat these measured properties as hard visual constraints, not optional suggestions.`;
+}
 
 function writeJson(response, status, body) {
   response.writeHead(status, {
@@ -146,11 +163,12 @@ async function handleImageGeneration(request, response) {
     { type: "character", image_file: `${publicBase}/runtime/uploads/${identitySource.sourceName}` }
   ];
   const config = styleConfigs[style];
+  const measuredStyleGuidance = style === "comic" ? buildMeasuredStyleGuidance(body.styleSignals) : "";
   let payload;
   try {
     payload = await miniMaxRequest("/image_generation", {
       model: "image-01",
-      prompt: `${config.prompt} The baby's name is ${String(body.babyName || "宝宝").slice(0, 12)}; never render the name as visible text.`,
+      prompt: `${config.prompt}${measuredStyleGuidance} The baby's name is ${String(body.babyName || "宝宝").slice(0, 12)}; never render the name as visible text.`,
       subject_reference: subjectReference,
       aspect_ratio: config.aspectRatio,
       response_format: "base64",

@@ -102,6 +102,7 @@ test("community masonry follows a compact two-column social feed rhythm", () => 
 
 test("AI studio separates fixed styles from user-supplied style reference", () => {
   assert.match(html, /id="aiStyleReferenceInput"/);
+  assert.match(html, /id="clearAIStyleReferenceButton"[^>]*aria-label="删除风格参考图"/);
   assert.match(html, />参考图同款</);
   assert.match(html, /class="style-swatch sticker"><img src="assets\/ai-art-sticker\.webp"/);
   assert.match(html, /class="style-swatch comic"><img[\s\S]*?<img/);
@@ -109,9 +110,14 @@ test("AI studio separates fixed styles from user-supplied style reference", () =
   assert.match(app, /aiStyleReferenceDataUrl:\s*null/);
   assert.match(app, /state\.aiStyle !== AI_ART_STYLE\.COMIC \|\| Boolean\(state\.aiStyleReferenceDataUrl\)/);
   assert.match(app, /buildAIStyleReferenceBoard\(state\.aiSourceDataUrl, state\.aiStyleReferenceDataUrl\)/);
+  assert.match(app, /function clearAIStyleReference\(\)/);
+  assert.match(app, /function analyzeAIStyleReference\(image\)/);
+  assert.match(app, /styleSignals:\s*referenceBoard\.styleSignals/);
   assert.match(server, /photorealistic Korean-style giant-head photo sticker/);
   assert.doesNotMatch(server, /pictureBook|children's picture-book character/);
   assert.match(server, /Reference image 1 is a two-panel reference board/);
+  assert.match(server, /buildMeasuredStyleGuidance\(body\.styleSignals\)/);
+  assert.match(server, /Treat these measured properties as hard visual constraints/);
   assert.doesNotMatch(server, /styleSource|styleReferenceDataUrl/);
   assert.match(server, /subjectReference = \[\s*\{ type: "character", image_file:[\s\S]*?\}\s*\];/);
   assert.match(server, /prompt_optimizer:\s*false/);

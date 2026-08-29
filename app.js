@@ -1391,6 +1391,7 @@ function resetAIStudio() {
   $("#aiStyleReferencePreview").src = "assets/ai-art-picturebook.webp";
   $("#aiStyleReferenceTitle").textContent = "选择一张喜欢的插画或漫画";
   $("#aiStyleReferenceDescription").textContent = "支持 JPG、PNG、WebP，建议画风清晰统一";
+  $("#clearAIStyleReferenceButton").classList.add("hidden");
   $("#aiStyleReferenceUploader").classList.add("hidden");
   $$('[data-ai-style]').forEach(button => button.classList.toggle("active", button.dataset.aiStyle === AI_ART_STYLE.STICKER));
   $("#aiGenerationState").className = "ai-generation-state empty";
@@ -1457,6 +1458,65 @@ function drawAIReferencePanel(context, image, x, y, width, height) {
   context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, width, height);
 }
 
+function drawAIStylePanel(context, image, x, y, width, height) {
+  const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+  const targetWidth = image.naturalWidth * scale;
+  const targetHeight = image.naturalHeight * scale;
+  context.fillStyle = "#fff";
+  context.fillRect(x, y, width, height);
+  context.drawImage(image, x + (width - targetWidth) / 2, y + (height - targetHeight) / 2, targetWidth, targetHeight);
+}
+
+function analyzeAIStyleReference(image) {
+  const sample = document.createElement("canvas");
+  sample.width = 48;
+  sample.height = 48;
+  const context = sample.getContext("2d", { willReadFrequently: true });
+  context.drawImage(image, 0, 0, sample.width, sample.height);
+  const pixels = context.getImageData(0, 0, sample.width, sample.height).data;
+  const luminance = [];
+  const palette = new Map();
+  let saturationTotal = 0;
+  let temperatureTotal = 0;
+  for (let index = 0; index < pixels.length; index += 4) {
+    const red = pixels[index];
+    const green = pixels[index + 1];
+    const blue = pixels[index + 2];
+    const max = Math.max(red, green, blue);
+    const min = Math.min(red, green, blue);
+    const light = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+    luminance.push(light);
+    saturationTotal += max ? (max - min) / max : 0;
+    temperatureTotal += red - blue;
+    if (light > 0.96 || light < 0.04) continue;
+    const quantize = value => Math.min(255, Math.round(value / 51) * 51);
+    const color = `#${[red, green, blue].map(quantize).map(value => value.toString(16).padStart(2, "0")).join("")}`;
+    palette.set(color, (palette.get(color) || 0) + 1);
+  }
+  const mean = luminance.reduce((sum, value) => sum + value, 0) / luminance.length;
+  const deviation = Math.sqrt(luminance.reduce((sum, value) => sum + (value - mean) ** 2, 0) / luminance.length);
+  let edgeTotal = 0;
+  let edgeCount = 0;
+  for (let y = 0; y < sample.height; y += 1) {
+    for (let x = 0; x < sample.width; x += 1) {
+      const current = luminance[y * sample.width + x];
+      if (x + 1 < sample.width) { edgeTotal += Math.abs(current - luminance[y * sample.width + x + 1]); edgeCount += 1; }
+      if (y + 1 < sample.height) { edgeTotal += Math.abs(current - luminance[(y + 1) * sample.width + x]); edgeCount += 1; }
+    }
+  }
+  const averageSaturation = saturationTotal / luminance.length;
+  const averageTemperature = temperatureTotal / luminance.length;
+  const averageEdge = edgeTotal / edgeCount;
+  return {
+    brightness: mean > 0.7 ? "light" : mean < 0.36 ? "dark" : "balanced",
+    saturation: averageSaturation > 0.48 ? "vivid" : averageSaturation < 0.2 ? "muted" : "balanced",
+    contrast: deviation > 0.3 ? "strong" : deviation < 0.16 ? "soft" : "balanced",
+    temperature: averageTemperature > 14 ? "warm" : averageTemperature < -14 ? "cool" : "neutral",
+    edges: averageEdge > 0.13 ? "crisp" : averageEdge < 0.055 ? "soft" : "textured",
+    palette: [...palette.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([color]) => color)
+  };
+}
+
 async function buildAIStyleReferenceBoard(identityDataUrl, styleDataUrl) {
   const [identityImage, styleImage] = await Promise.all([
     loadAIReferenceImage(identityDataUrl),
@@ -1468,9 +1528,14 @@ async function buildAIStyleReferenceBoard(identityDataUrl, styleDataUrl) {
   const context = canvas.getContext("2d", { alpha: false });
   context.fillStyle = "#f4efff";
   context.fillRect(0, 0, canvas.width, canvas.height);
-  drawAIReferencePanel(context, identityImage, 0, 0, 1008, 1024);
-  drawAIReferencePanel(context, styleImage, 1040, 0, 1008, 1024);
-  return canvas.toDataURL("image/jpeg", 0.9);
+  drawAIReferencePanel(context, identityImage, 0, 0, 736, 1024);
+  context.fillStyle = "#9b75cf";
+  context.fillRect(736, 0, 32, 1024);
+  drawAIStylePanel(context, styleImage, 768, 0, 1280, 1024);
+  return {
+    dataUrl: canvas.toDataURL("image/jpeg", 0.9),
+    styleSignals: analyzeAIStyleReference(styleImage)
+  };
 }
 
 async function selectAIPhoto(event) {
@@ -1500,8 +1565,23 @@ async function selectAIStyleReference(event) {
   state.aiStyleReferenceDataUrl = await readFileAsDataURL(file);
   $("#aiStyleReferencePreview").src = state.aiStyleReferenceDataUrl;
   $("#aiStyleReferenceTitle").textContent = "风格参考图已准备好";
-  $("#aiStyleReferenceDescription").textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+  $("#aiStyleReferenceDescription").textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB · 点此可更换`;
+  $("#clearAIStyleReferenceButton").classList.remove("hidden");
   updateAIGenerationAvailability();
+}
+
+function clearAIStyleReference() {
+  state.aiStyleReferenceFile = null;
+  state.aiStyleReferenceDataUrl = null;
+  $("#aiStyleReferenceInput").value = "";
+  $("#aiStyleReferencePreview").src = "assets/ai-art-picturebook.webp";
+  $("#aiStyleReferenceTitle").textContent = "选择一张喜欢的插画或漫画";
+  $("#aiStyleReferenceDescription").textContent = "支持 JPG、PNG、WebP，建议画风清晰统一";
+  $("#clearAIStyleReferenceButton").classList.add("hidden");
+  $("#aiGenerationState").className = "ai-generation-state empty";
+  $("#aiGenerationState").innerHTML = "<p>风格参考图已删除，可以重新选择一张。</p>";
+  updateAIGenerationAvailability();
+  showToast("风格参考图已删除");
 }
 
 function selectAIStyle(style) {
@@ -1546,15 +1626,16 @@ async function startAIGeneration() {
   $("#cancelAIGenerationButton").classList.remove("hidden");
   state.aiAbortController = new AbortController();
   try {
-    const generationReferenceDataUrl = state.aiStyle === AI_ART_STYLE.COMIC
+    const referenceBoard = state.aiStyle === AI_ART_STYLE.COMIC
       ? await buildAIStyleReferenceBoard(state.aiSourceDataUrl, state.aiStyleReferenceDataUrl)
-      : state.aiSourceDataUrl;
+      : { dataUrl: state.aiSourceDataUrl, styleSignals: null };
     const response = await fetch("/api/minimax/image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: state.aiAbortController.signal,
       body: JSON.stringify({
-        imageDataUrl: generationReferenceDataUrl,
+        imageDataUrl: referenceBoard.dataUrl,
+        styleSignals: referenceBoard.styleSignals,
         style: state.aiStyle,
         babyName: activeBaby().name,
         consent: true
@@ -1720,6 +1801,7 @@ $$('[data-community-filter]').forEach(button => button.addEventListener("click",
 $("#closeAIArtModal").addEventListener("click", closeAIStudio);
 $("#aiPhotoInput").addEventListener("change", selectAIPhoto);
 $("#aiStyleReferenceInput").addEventListener("change", selectAIStyleReference);
+$("#clearAIStyleReferenceButton").addEventListener("click", clearAIStyleReference);
 $("#aiUploadConsent").addEventListener("change", updateAIGenerationAvailability);
 $$('[data-ai-style]').forEach(button => button.addEventListener("click", () => {
   selectAIStyle(button.dataset.aiStyle);
