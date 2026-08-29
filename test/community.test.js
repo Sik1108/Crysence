@@ -39,7 +39,7 @@ test("community seed uses varied scene images instead of one repeated baby asset
 
 test("MiniMax AI artwork follows an explicit queued, generating and completed lifecycle", () => {
   const store = new CommunityStore(new CommunityMemoryStorage());
-  const job = store.createArtworkJob(AI_ART_STYLE.PICTURE_BOOK);
+  const job = store.createArtworkJob(AI_ART_STYLE.COMIC);
 
   assert.equal(job.status, AI_JOB_STATUS.QUEUED);
   assert.equal(job.provider, "minimax");

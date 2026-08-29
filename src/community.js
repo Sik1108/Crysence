@@ -6,7 +6,6 @@ export const MOMENT_VISIBILITY = Object.freeze({
 
 export const AI_ART_STYLE = Object.freeze({
   STICKER: "sticker",
-  PICTURE_BOOK: "pictureBook",
   COMIC: "comic"
 });
 
@@ -282,7 +281,7 @@ export class CommunityStore {
       text: moment.text,
       aiGenerated: Boolean(job),
       image: moment.generatedImage || (job
-        ? job.style === AI_ART_STYLE.PICTURE_BOOK ? "assets/ai-art-picturebook.webp" : "assets/ai-art-sticker.webp"
+        ? "assets/ai-art-sticker.webp"
         : moment.hasMockPhoto ? "assets/community-feature-arched.webp" : null),
       imageAlt: job ? "AI 艺术化宝宝小作品" : moment.hasMockPhoto ? "宝宝成长小记的演示场景图" : null,
       createdAt: new Date().toISOString(),

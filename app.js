@@ -1521,7 +1521,6 @@ function selectAIStyle(style) {
 function styleLabel(style) {
   return {
     sticker: "宝宝大头贴",
-    pictureBook: "绘本小主角",
     comic: "参考图同款"
   }[style] || "宝宝小作品";
 }
