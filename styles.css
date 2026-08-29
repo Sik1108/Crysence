@@ -4590,24 +4590,24 @@ main {
 .ai-reference-delete {
   position: absolute;
   z-index: 2;
-  top: -4px;
-  right: -4px;
-  width: 20px;
-  height: 20px;
+  top: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1.5px solid #fff;
+  border: 1px solid #fff;
   border-radius: 999px;
   background: #3d2a58;
   color: #fff;
   box-shadow: 0 5px 12px rgba(46, 29, 70, .2);
-  font-size: 13px;
+  font-size: 11px;
   line-height: 1;
 }
 
 .ai-reference-delete.hidden { display: none; }
-.ai-reference-delete::after { content: ""; position: absolute; inset: -10px; }
+.ai-reference-delete::after { content: ""; position: absolute; inset: -14px; }
 
 .ai-reference-heading {
   display: flex;
