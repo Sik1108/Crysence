@@ -95,7 +95,7 @@ test("direct file opening explains the module restriction and links to localhost
 
 test("community masonry follows a compact two-column social feed rhythm", () => {
   assert.match(css, /\.community-feed\s*\{[^}]*columns:\s*2;[^}]*column-gap:\s*4px;[^}]*padding:\s*2px 5px 84px;/s);
-  assert.match(css, /\.community-post-card\.is-tall \.community-post-image\s*\{\s*aspect-ratio:\s*3 \/ 4;/);
+  assert.match(css, /\.community-post-card\.is-tall \.community-post-image\s*\{\s*aspect-ratio:\s*5 \/ 6;/);
   assert.match(css, /\.community-post-card\.is-short \.community-post-image\s*\{\s*aspect-ratio:\s*4 \/ 3;/);
   assert.match(css, /-webkit-line-clamp:\s*2;/);
 });
@@ -103,6 +103,9 @@ test("community masonry follows a compact two-column social feed rhythm", () => 
 test("AI studio separates fixed styles from user-supplied style reference", () => {
   assert.match(html, /id="aiStyleReferenceInput"/);
   assert.match(html, />参考图同款</);
+  assert.match(html, /class="style-swatch sticker"><img src="assets\/ai-art-sticker\.webp"/);
+  assert.match(html, /class="style-swatch picture-book"><img src="assets\/ai-art-picturebook\.webp"/);
+  assert.match(html, /class="style-swatch comic"><img[\s\S]*?<img/);
   assert.match(app, /styleReferenceDataUrl:/);
   assert.match(app, /state\.aiStyle !== AI_ART_STYLE\.COMIC \|\| Boolean\(state\.aiStyleReferenceDataUrl\)/);
   assert.match(server, /photorealistic Korean-style giant-head photo sticker/);

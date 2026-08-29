@@ -1,4 +1,4 @@
-const CACHE_NAME = "crysense-shell-v2";
+const CACHE_NAME = "crysense-shell-v3";
 const APP_SHELL = [
   "/",
   "/index.html",
