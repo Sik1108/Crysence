@@ -172,6 +172,8 @@ const state = {
   aiGenerationTimer: null,
   aiSourceFile: null,
   aiSourceDataUrl: null,
+  aiStyleReferenceFile: null,
+  aiStyleReferenceDataUrl: null,
   aiGeneratedImage: null,
   miniMaxConfigured: false,
   aiAbortController: null
@@ -1377,12 +1379,19 @@ function resetAIStudio() {
   state.aiResultSelection = 0;
   state.aiSourceFile = null;
   state.aiSourceDataUrl = null;
+  state.aiStyleReferenceFile = null;
+  state.aiStyleReferenceDataUrl = null;
   state.aiGeneratedImage = null;
   $("#aiPhotoInput").value = "";
+  $("#aiStyleReferenceInput").value = "";
   $("#aiUploadConsent").checked = false;
   $("#aiPhotoPreview").src = "assets/community-feature-arched.webp";
   $("#aiSourceTitle").textContent = "拍摄或选择一张照片";
   $("#aiSourceDescription").textContent = "支持 JPG、PNG、WebP，建议主体清晰";
+  $("#aiStyleReferencePreview").src = "assets/ai-art-picturebook.webp";
+  $("#aiStyleReferenceTitle").textContent = "选择一张喜欢的插画或漫画";
+  $("#aiStyleReferenceDescription").textContent = "支持 JPG、PNG、WebP，建议画风清晰统一";
+  $("#aiStyleReferenceUploader").classList.add("hidden");
   $$('[data-ai-style]').forEach(button => button.classList.toggle("active", button.dataset.aiStyle === AI_ART_STYLE.STICKER));
   $("#aiGenerationState").className = "ai-generation-state empty";
   $("#aiGenerationState").innerHTML = "<p>选好照片和风格后，就可以开始创作。</p>";
@@ -1417,7 +1426,8 @@ function openAIStudio() {
 }
 
 function updateAIGenerationAvailability() {
-  $("#startAIGenerationButton").disabled = !(state.aiSourceSelected && $("#aiUploadConsent").checked && state.miniMaxConfigured);
+  const referenceReady = state.aiStyle !== AI_ART_STYLE.COMIC || Boolean(state.aiStyleReferenceDataUrl);
+  $("#startAIGenerationButton").disabled = !(state.aiSourceSelected && referenceReady && $("#aiUploadConsent").checked && state.miniMaxConfigured);
 }
 
 function readFileAsDataURL(file) {
@@ -1445,11 +1455,40 @@ async function selectAIPhoto(event) {
   updateAIGenerationAvailability();
 }
 
+async function selectAIStyleReference(event) {
+  const file = event.currentTarget.files?.[0];
+  if (!file) return;
+  if (file.size > 8 * 1024 * 1024) {
+    event.currentTarget.value = "";
+    return showToast("风格参考图请控制在 8 MB 以内");
+  }
+  state.aiStyleReferenceFile = file;
+  state.aiStyleReferenceDataUrl = await readFileAsDataURL(file);
+  $("#aiStyleReferencePreview").src = state.aiStyleReferenceDataUrl;
+  $("#aiStyleReferenceTitle").textContent = "风格参考图已准备好";
+  $("#aiStyleReferenceDescription").textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+  updateAIGenerationAvailability();
+}
+
+function selectAIStyle(style) {
+  state.aiStyle = style;
+  $$('[data-ai-style]').forEach(item => item.classList.toggle("active", item.dataset.aiStyle === style));
+  $("#aiStyleReferenceUploader").classList.toggle("hidden", style !== AI_ART_STYLE.COMIC);
+  if (style === AI_ART_STYLE.COMIC && !state.aiStyleReferenceDataUrl) {
+    $("#aiGenerationState").className = "ai-generation-state empty";
+    $("#aiGenerationState").innerHTML = "<p>先选择宝宝照片，再上传一张你喜欢的风格参考图。</p>";
+  } else {
+    $("#aiGenerationState").className = "ai-generation-state empty";
+    $("#aiGenerationState").innerHTML = "<p>选好照片和风格后，就可以开始创作。</p>";
+  }
+  updateAIGenerationAvailability();
+}
+
 function styleLabel(style) {
   return {
     sticker: "宝宝大头贴",
     pictureBook: "绘本小主角",
-    comic: "温柔漫画格"
+    comic: "参考图同款"
   }[style] || "宝宝小作品";
 }
 
@@ -1478,7 +1517,13 @@ async function startAIGeneration() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       signal: state.aiAbortController.signal,
-      body: JSON.stringify({ imageDataUrl: state.aiSourceDataUrl, style: state.aiStyle, babyName: activeBaby().name, consent: true })
+      body: JSON.stringify({
+        imageDataUrl: state.aiSourceDataUrl,
+        styleReferenceDataUrl: state.aiStyle === AI_ART_STYLE.COMIC ? state.aiStyleReferenceDataUrl : null,
+        style: state.aiStyle,
+        babyName: activeBaby().name,
+        consent: true
+      })
     });
     const payload = await response.json();
     if (!response.ok || !payload.images?.[0]) throw new Error(payload.message || "生成服务暂时不可用");
@@ -1639,10 +1684,10 @@ $$('[data-community-filter]').forEach(button => button.addEventListener("click",
 }));
 $("#closeAIArtModal").addEventListener("click", closeAIStudio);
 $("#aiPhotoInput").addEventListener("change", selectAIPhoto);
+$("#aiStyleReferenceInput").addEventListener("change", selectAIStyleReference);
 $("#aiUploadConsent").addEventListener("change", updateAIGenerationAvailability);
 $$('[data-ai-style]').forEach(button => button.addEventListener("click", () => {
-  state.aiStyle = button.dataset.aiStyle;
-  $$('[data-ai-style]').forEach(item => item.classList.toggle("active", item === button));
+  selectAIStyle(button.dataset.aiStyle);
 }));
 $("#startAIGenerationButton").addEventListener("click", startAIGeneration);
 $("#cancelAIGenerationButton").addEventListener("click", cancelAIGeneration);

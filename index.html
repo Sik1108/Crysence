@@ -623,10 +623,19 @@
       <input class="visually-hidden" id="aiPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" />
       <label class="ai-source-card" for="aiPhotoInput"><span class="ai-source-thumb"><img id="aiPhotoPreview" src="assets/community-feature-arched.webp" alt="待创作照片预览" width="800" height="1000" /></span><span><b id="aiSourceTitle">拍摄或选择一张照片</b><small id="aiSourceDescription">支持 JPG、PNG、WebP，建议主体清晰</small></span><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg></label>
       <fieldset class="ai-style-field"><legend>选择一种风格</legend><div class="ai-style-grid" id="aiStyleGrid">
-        <button class="active" type="button" data-ai-style="sticker"><span class="style-swatch sticker"></span><b>宝宝大头贴</b><small>柔和纯色背景</small></button>
-        <button type="button" data-ai-style="pictureBook"><span class="style-swatch picture-book"></span><b>绘本小主角</b><small>轻柔蜡笔质感</small></button>
-        <button type="button" data-ai-style="comic"><span class="style-swatch comic"></span><b>温柔漫画格</b><small>单格日常片刻</small></button>
+        <button class="active" type="button" data-ai-style="sticker"><span class="style-swatch sticker"></span><b>宝宝大头贴</b><small>真人大头贴纸效果</small></button>
+        <button type="button" data-ai-style="pictureBook"><span class="style-swatch picture-book"></span><b>绘本小主角</b><small>蜡笔手绘小人效果</small></button>
+        <button type="button" data-ai-style="comic"><span class="style-swatch comic"></span><b>参考图同款</b><small>上传喜欢的画风</small></button>
       </div></fieldset>
+      <div class="ai-reference-uploader hidden" id="aiStyleReferenceUploader">
+        <input class="visually-hidden" id="aiStyleReferenceInput" type="file" accept="image/jpeg,image/png,image/webp" />
+        <div class="ai-reference-heading"><div><b>再上传一张风格参考图</b><small>只学习画风，不复制参考图里的人物</small></div><span>必选</span></div>
+        <label class="ai-reference-card" for="aiStyleReferenceInput">
+          <span class="ai-reference-preview"><img id="aiStyleReferencePreview" src="assets/ai-art-picturebook.webp" alt="风格参考图预览" width="720" height="900" /></span>
+          <span><b id="aiStyleReferenceTitle">选择一张喜欢的插画或漫画</b><small id="aiStyleReferenceDescription">支持 JPG、PNG、WebP，建议画风清晰统一</small></span>
+          <svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg>
+        </label>
+      </div>
       <label class="ai-upload-consent"><input id="aiUploadConsent" type="checkbox" /><span><b>同意本次将照片发送至 MiniMax 生成</b><small>仅用于本次生成；是否留存由部署方的服务策略决定。</small></span></label>
       <div class="ai-generation-state empty" id="aiGenerationState" role="status" aria-live="polite"><p>选好照片和风格后，就可以开始创作。</p></div>
       <button class="primary-button" id="startAIGenerationButton" type="button" disabled>开始创作</button>

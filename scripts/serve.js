@@ -29,10 +29,19 @@ const contentTypes = new Map([
   [".jpeg", "image/jpeg"], [".svg", "image/svg+xml"]
 ]);
 
-const stylePrompts = {
-  sticker: "保留宝宝本人清晰可辨的五官、年龄和姿态，制作高级儿童摄影大头贴。柔和鼠尾草绿纯色背景，自然肤色，真实摄影质感，干净构图，不添加文字，不改变身份。",
-  pictureBook: "保留宝宝本人清晰可辨的五官、年龄和姿态，转化为精致温柔的儿童绘本主角。细腻蜡笔与水彩纸纹理，低饱和鼠尾草绿和奶油色，不添加文字。",
-  comic: "保留宝宝本人清晰可辨的五官、年龄和姿态，转化为一格温柔家庭漫画。自然光，细腻线稿，低饱和配色，真实比例，不添加文字或对话框。"
+const styleConfigs = {
+  sticker: {
+    aspectRatio: "1:1",
+    prompt: "Create a photorealistic Korean-style giant-head photo sticker from reference image 1. Preserve the baby's exact identity, infant age, facial proportions, skin tone, eye shape and recognizable expression. Use an extreme close-up centered head portrait: only the complete head and a tiny amount of neck, no torso, no hands, no room or original background. Keep realistic skin and hair texture, bright high-key studio lighting and a pure white seamless background. Add a clean white die-cut sticker outline around the hair and chin with a very soft pale-gray contact shadow. The result must look like a professionally retouched real photo sticker, cute and lively, not an illustration, not 3D, not a painting, not an adult, no text, no watermark, no collage."
+  },
+  pictureBook: {
+    aspectRatio: "3:4",
+    prompt: "Turn the baby in reference image 1 into a clearly hand-drawn children's picture-book character. Preserve the baby's identity, infant age, hairstyle, expression and distinctive facial features, but deliberately render them as a 2D illustration: oversized rounded head, tiny simplified body, short limbs, irregular charcoal outlines, flat matte color blocks, wax-crayon and dry-gouache grain, visible paper texture and charming handmade imperfections. Use a warm off-white paper background with generous empty space and one simple standing or bust pose. The result must be unmistakably illustrated and editorial, not photorealistic, not glossy 3D, not anime, no realistic skin pores, no text, no watermark, no frame."
+  },
+  comic: {
+    aspectRatio: "3:4",
+    prompt: "Reference image 1 is the identity source: preserve only that baby's exact identity, infant age, facial structure, hairstyle and recognizable expression. Reference image 2 is the style source only: analyze and reproduce its line quality, brush texture, color palette, shape simplification, head-to-body proportion, shading method, edge treatment and background treatment. Do not copy the person, face, clothes, pose, symbols or text from reference image 2. Redraw the baby from reference image 1 as one coherent finished artwork in the visual language of reference image 2, with a single centered subject, clean composition and no split screen, no before-and-after layout, no collage, no captions, no watermark."
+  }
 };
 
 function writeJson(response, status, body) {
@@ -101,39 +110,65 @@ async function miniMaxRequest(endpoint, body) {
   return payload;
 }
 
+function parseImageDataUrl(value, label = "照片") {
+  const match = String(value || "").match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) {
+    const error = new Error(`${label}格式无效，请使用 JPG、PNG 或 WebP。`);
+    error.statusCode = 400;
+    throw error;
+  }
+  const buffer = Buffer.from(match[2], "base64");
+  if (!buffer.length || buffer.length > 8 * 1024 * 1024) {
+    const error = new Error(`${label}需小于 8 MB。`);
+    error.statusCode = 413;
+    throw error;
+  }
+  const extension = match[1].endsWith("png") ? "png" : match[1].endsWith("webp") ? "webp" : "jpg";
+  return { buffer, extension };
+}
+
+async function persistReferenceImage(parsed, sourceDir) {
+  const sourceName = `${randomUUID()}.${parsed.extension}`;
+  const sourcePath = path.join(sourceDir, sourceName);
+  await writeFile(sourcePath, parsed.buffer);
+  return { sourceName, sourcePath };
+}
+
 async function handleImageGeneration(request, response) {
   const publicBase = resolvePublicBase(request);
   if (!miniMaxKey || !isPublicHttpBase(publicBase)) {
     return writeJson(response, 503, { configured: false, message: "MiniMax 尚未配置：需要服务端 MINIMAX_API_KEY 和 HTTPS 公网域名。" });
   }
-  const body = await readJson(request);
+  const body = await readJson(request, 24 * 1024 * 1024);
   if (body.consent !== true) return writeJson(response, 400, { message: "需要明确同意本次照片上传生成。" });
-  const match = String(body.imageDataUrl || "").match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
-  if (!match) return writeJson(response, 400, { message: "照片格式无效，请使用 JPG、PNG 或 WebP。" });
-  const buffer = Buffer.from(match[2], "base64");
-  if (!buffer.length || buffer.length > 8 * 1024 * 1024) return writeJson(response, 413, { message: "照片需小于 8 MB。" });
-
-  const extension = match[1].endsWith("png") ? "png" : match[1].endsWith("webp") ? "webp" : "jpg";
-  const sourceName = `${randomUUID()}.${extension}`;
+  const style = styleConfigs[body.style] ? body.style : "sticker";
+  const identityImage = parseImageDataUrl(body.imageDataUrl, "宝宝照片");
+  const styleImage = style === "comic" ? parseImageDataUrl(body.styleReferenceDataUrl, "风格参考图") : null;
   const sourceDir = path.join(runtimeRoot, "uploads");
   await mkdir(sourceDir, { recursive: true });
-  const sourcePath = path.join(sourceDir, sourceName);
-  await writeFile(sourcePath, buffer);
-  const sourceUrl = `${publicBase}/runtime/uploads/${sourceName}`;
-  const style = stylePrompts[body.style] ? body.style : "sticker";
+  const identitySource = await persistReferenceImage(identityImage, sourceDir);
+  const styleSource = styleImage ? await persistReferenceImage(styleImage, sourceDir) : null;
+  const subjectReference = [
+    { type: "character", image_file: `${publicBase}/runtime/uploads/${identitySource.sourceName}` },
+    ...(styleSource ? [{ type: "character", image_file: `${publicBase}/runtime/uploads/${styleSource.sourceName}` }] : [])
+  ];
+  const config = styleConfigs[style];
   let payload;
   try {
     payload = await miniMaxRequest("/image_generation", {
       model: "image-01",
-      prompt: `${stylePrompts[style]} 主体是名叫${String(body.babyName || "宝宝").slice(0, 12)}的婴儿。`,
-      subject_reference: [{ type: "character", image_file: sourceUrl }],
-      aspect_ratio: "3:4",
+      prompt: `${config.prompt} The baby's name is ${String(body.babyName || "宝宝").slice(0, 12)}; never render the name as visible text.`,
+      subject_reference: subjectReference,
+      aspect_ratio: config.aspectRatio,
       response_format: "base64",
       n: 1,
-      prompt_optimizer: true
+      prompt_optimizer: false
     });
   } finally {
-    await unlink(sourcePath).catch(() => {});
+    await Promise.all([
+      unlink(identitySource.sourcePath).catch(() => {}),
+      styleSource ? unlink(styleSource.sourcePath).catch(() => {}) : Promise.resolve()
+    ]);
   }
 
   const encoded = payload.data?.image_base64?.[0] || payload.data?.images?.[0]?.base64 || payload.images?.[0]?.base64;
@@ -209,7 +244,11 @@ const server = createServer(async (request, response) => {
     response.end(body);
   } catch (error) {
     const isApi = String(request.url || "").startsWith("/api/");
-    if (isApi) return writeJson(response, error.message === "request_too_large" ? 413 : 500, { message: error.message || "服务暂时不可用" });
+    if (isApi) {
+      const status = Number(error.statusCode) || (error.message === "request_too_large" ? 413 : 500);
+      if (status >= 500) console.error(`[API] ${request.method} ${request.url}: ${error.message || "unknown_error"}`);
+      return writeJson(response, status, { message: error.message || "服务暂时不可用" });
+    }
     response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     response.end("Not Found");
   }

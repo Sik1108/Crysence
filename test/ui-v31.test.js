@@ -4,6 +4,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const html = readFileSync(fileURLToPath(new URL("../index.html", import.meta.url)), "utf8");
+const css = readFileSync(fileURLToPath(new URL("../styles.css", import.meta.url)), "utf8");
+const app = readFileSync(fileURLToPath(new URL("../app.js", import.meta.url)), "utf8");
+const server = readFileSync(fileURLToPath(new URL("../scripts/serve.js", import.meta.url)), "utf8");
 
 test("timeline owns both records and the former insights experience", () => {
   const timelineStart = html.indexOf('id="timelineView"');
@@ -88,4 +91,22 @@ test("direct file opening explains the module restriction and links to localhost
   assert.match(html, /id="fileLaunchHelp"/);
   assert.match(html, /window\.location\.protocol === "file:"/);
   assert.match(html, /http:\/\/127\.0\.0\.1:4174\/\?fresh=1/);
+});
+
+test("community masonry follows a compact two-column social feed rhythm", () => {
+  assert.match(css, /\.community-feed\s*\{[^}]*columns:\s*2;[^}]*column-gap:\s*4px;[^}]*padding:\s*2px 5px 84px;/s);
+  assert.match(css, /\.community-post-card\.is-tall \.community-post-image\s*\{\s*aspect-ratio:\s*3 \/ 4;/);
+  assert.match(css, /\.community-post-card\.is-short \.community-post-image\s*\{\s*aspect-ratio:\s*4 \/ 3;/);
+  assert.match(css, /-webkit-line-clamp:\s*2;/);
+});
+
+test("AI studio separates fixed styles from user-supplied style reference", () => {
+  assert.match(html, /id="aiStyleReferenceInput"/);
+  assert.match(html, />参考图同款</);
+  assert.match(app, /styleReferenceDataUrl:/);
+  assert.match(app, /state\.aiStyle !== AI_ART_STYLE\.COMIC \|\| Boolean\(state\.aiStyleReferenceDataUrl\)/);
+  assert.match(server, /photorealistic Korean-style giant-head photo sticker/);
+  assert.match(server, /hand-drawn children's picture-book character/);
+  assert.match(server, /Reference image 2 is the style source only/);
+  assert.match(server, /prompt_optimizer:\s*false/);
 });
