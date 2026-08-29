@@ -6,7 +6,9 @@ export const MOMENT_VISIBILITY = Object.freeze({
 
 export const AI_ART_STYLE = Object.freeze({
   STICKER: "sticker",
-  COMIC: "comic"
+  MINIMAX: "minimax",
+  COMIC: "comic",
+  CUSTOM: "custom"
 });
 
 export const AI_JOB_STATUS = Object.freeze({

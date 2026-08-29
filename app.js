@@ -7,7 +7,6 @@ import {
 import { RecordingCountdown } from "./src/recording.js";
 import {
   DEVICE_STATUS,
-  FUTURE_SMART_HOME_ADAPTERS,
   MockSmartHomeAdapter,
   PLAN_STATUS,
   UserConsent,
@@ -110,7 +109,7 @@ const seedEvents = [
   { id: 2, type: "feeding", at: minutesAgo(120), title: "奶瓶喂养", detail: "配方奶 120 ml，喂养后已拍嗝", tags: ["120 ml", "已拍嗝"], author: "爸爸" },
   { id: 3, type: "sleep", at: minutesAgo(206), title: "午睡结束", detail: "睡眠 1 小时 12 分，醒来状态平稳", tags: ["1 小时 12 分", "自然醒"], author: "妈妈" },
   { id: 4, type: "soothing", at: minutesAgo(292), title: "抱哄后明显缓解", detail: "降低光线并抱哄，约 6 分钟后平静", tags: ["抱哄", "明显缓解"], author: "妈妈" },
-  { id: 5, type: "cry", at: minutesAgo(300), title: "哭声分析：更可能困倦", detail: "采集 5 秒，模拟分析匹配度 78%", tags: ["较高置信度", "已反馈"], author: "妈妈" },
+  { id: 5, type: "cry", at: minutesAgo(300), title: "哭声分析：更可能困倦", detail: "采集 5 秒，模拟分析匹配度 78%", tags: ["较高可信度", "已反馈"], author: "妈妈" },
   { id: 6, type: "feeding", at: minutesAgo(425), title: "母乳喂养", detail: "左侧 12 分钟，右侧 9 分钟", tags: ["21 分钟"], author: "妈妈" },
   { id: 7, type: "sleep", at: minutesAgo(502), title: "夜间睡眠结束", detail: "本段睡眠 3 小时 2 分", tags: ["3 小时 2 分"], author: "爸爸" }
 ];
@@ -170,10 +169,13 @@ const state = {
   aiJobId: null,
   aiResultSelection: 0,
   aiGenerationTimer: null,
+  aiGenerationProgressTimer: null,
+  aiGenerationProgress: 0,
   aiSourceFile: null,
   aiSourceDataUrl: null,
   aiStyleReferenceFile: null,
   aiStyleReferenceDataUrl: null,
+  aiCustomPrompt: "",
   aiGeneratedImage: null,
   miniMaxConfigured: false,
   aiAbortController: null
@@ -257,6 +259,7 @@ function navigate(name) {
   $$(".bottom-nav [data-nav]").forEach(button => button.classList.toggle("active", button.dataset.nav === name));
   $("#appShell").classList.toggle("flow-active", name === "listen");
   $("#appShell").classList.toggle("search-active", name === "search");
+  $("#appShell").classList.toggle("community-active", name === "community");
   $("#communityComposeButton").classList.toggle("hidden", name !== "community");
   $("#globalSearchButton").classList.toggle("hidden", name !== "community");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -467,7 +470,7 @@ function safetyLabel(record) {
     pathological_risk: "病理风险分流",
     abnormal_cry: "异常哭声分流",
     danger_signs: "危险体征分流",
-    low_confidence: "低置信度",
+    low_confidence: "低可信度",
     unreliable: "无法可靠分类"
   };
   return labels[record.safetyResult?.status] || "状态未知";
@@ -693,7 +696,6 @@ function resetRecorder() {
   $("#recordButton").disabled = false;
   $("#recordButton").setAttribute("aria-label", "开始 5 秒录音");
   $("#recordButton").classList.remove("recording");
-  $(".demo-actions").classList.remove("hidden");
   updateQuality("", "等待开始");
   $("#recorderStage").classList.remove("hidden");
   $("#safetyResultStage").classList.add("hidden");
@@ -746,7 +748,7 @@ async function toggleRecording() {
 
 async function beginRecording() {
   if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-    showToast("当前打开方式无法使用麦克风，请使用演示分析或 localhost");
+    showToast("当前页面无法使用麦克风，请确认已通过 HTTPS 打开并允许权限");
     updateQuality("low", "麦克风不可用");
     return;
   }
@@ -763,7 +765,6 @@ async function beginRecording() {
     $("#recordButton").classList.add("recording");
     $("#recordButton").disabled = false;
     $("#recordButton").setAttribute("aria-label", "停止录音并开始分析");
-    $(".demo-actions").classList.add("hidden");
     $("#recordStatus").textContent = "正在听禾禾的声音，再轻触一次可以提前结束";
     updateQuality("good", "正在检测声音");
     state.countdown.start();
@@ -776,7 +777,6 @@ async function beginRecording() {
     $("#recordButton").classList.remove("recording");
     $("#recordButton").disabled = false;
     $("#recordButton").setAttribute("aria-label", "开始 5 秒录音");
-    $(".demo-actions").classList.remove("hidden");
     const permissionDenied = error?.name === "NotAllowedError" || error?.name === "PermissionDeniedError";
     if (permissionDenied) {
       permissions.microphone = "denied";
@@ -784,7 +784,7 @@ async function beginRecording() {
     }
     updateQuality("low", permissionDenied ? "未获得麦克风权限" : "录音启动失败");
     $("#recordStatus").textContent = permissionDenied
-      ? "可在浏览器设置中允许麦克风，或体验演示分析"
+      ? "请在浏览器设置中允许麦克风后重试"
       : "没有成功开始录音，请轻触按钮再试一次";
     showToast(permissionDenied ? "麦克风未授权，本次不会采集音频" : "录音没有成功开始，请再试一次");
   }
@@ -847,7 +847,7 @@ function renderInsights() {
 
 async function requestMiniMaxCryAnalysis() {
   $("#recordButton").disabled = true;
-  $("#recordStatus").textContent = "正在提取声音特征并请求 MiniMax 推理";
+  $("#recordStatus").textContent = "正在提取声音特征";
   try {
     const baby = activeBaby();
     const response = await fetch("/api/minimax/cry-analysis", {
@@ -954,7 +954,7 @@ function showResult(probabilities, demo) {
 
   $("#topProbability").textContent = `${maximum}%`;
   $("#topReason").textContent = labels[top];
-  $("#confidenceLabel").textContent = reliable ? "较高置信度" : confidenceBand === "medium" ? "无法可靠分类" : "低置信度";
+  $("#confidenceLabel").textContent = reliable ? "较高可信度" : confidenceBand === "medium" ? "无法可靠分类" : "低可信度";
   $("#resultSummary").textContent = reliable
     ? ["声音与近期喂养间隔更接近饥饿信号。", "声音节奏与较长清醒时长更接近困倦信号。", "声音更接近一般性不适，请结合环境与身体状态。 "][top]
     : "几种可能性仍较接近，仅凭这段声音不能可靠判断。";
@@ -973,13 +973,10 @@ function showResult(probabilities, demo) {
   $("#actionDescription").textContent = actions[top][1];
   $("#actionCard").classList.toggle("hidden", !reliable);
   $("#checklistCard").classList.toggle("hidden", reliable);
-  const evidence = top === 0
-    ? [["支持饥饿", "距离上次喂养已有一段时间。"], ["支持饥饿", "哭声节奏与过去饥饿记录相似。"]]
-    : top === 1
-      ? [["支持困倦", "哭声强度逐渐回落，接近以往困倦时的节奏。"], ["支持困倦", "当前清醒时长比近期常见时长多约 18 分钟。"]]
-      : [["建议检查", "声音特征更接近一般性不适。"], ["需要结合", "尿布、姿势、体温和精神状态仍需人工确认。"]];
-  $("#evidenceList").innerHTML = evidence.map(item => `<li><span>↑</span><p><b>${item[0]}</b>${item[1]}</p></li>`).join("")
-    + `<li class="neutral"><span>i</span><p><b>仍有不确定</b>${demo ? "本次为模拟分析，不具备真实识别能力。" : "录音中可能存在少量背景声音。"}</p></li>`;
+  $("#lowConfidenceRetry").classList.toggle("hidden", reliable);
+  $("#lowConfidenceHint").textContent = confidenceBand === "low"
+    ? "这段声音可能受环境噪声影响，判断可信度较低。要重新录音吗？"
+    : "几种声音特征过于接近，判断可信度有限。要重新录音吗？";
 
   renderAutomationPlan(plan);
   $("#recorderStage").classList.add("hidden");
@@ -989,7 +986,7 @@ function showResult(probabilities, demo) {
     id: Date.now(), type: "cry", at: analysis.timestamp,
     title: `哭声分析：${reliable ? `更可能${labels[top]}` : "暂时无法可靠判断"}`,
     detail: `采集 ${RECORDING_DURATION_SECONDS} 秒，匹配度 ${maximum}%`,
-    tags: [reliable ? "较高置信度" : "自动化已禁止", demo ? "模拟分析" : "待反馈"], author: "爸爸"
+    tags: [reliable ? "较高可信度" : "自动化已禁止", demo ? "模拟分析" : "待反馈"], author: "爸爸"
   });
   saveEvents();
   renderAnalysisHistory();
@@ -1162,10 +1159,9 @@ function renderDevices() {
       <span class="device-status ${escapeHTML(device.status)}">${escapeHTML(deviceStatusLabel(device.status))}<i aria-hidden="true">›</i></span>
     </button>`).join("");
   $$('[data-device-id]').forEach(button => button.addEventListener("click", () => openDeviceDetail(button.dataset.deviceId)));
-  $("#futureAdapterList").textContent = FUTURE_SMART_HOME_ADAPTERS.join(" / ");
   const granted = permissions.home === "granted";
   $("#homePermissionTitle").textContent = granted ? "模拟家庭已连接" : permissions.home === "denied" ? "模拟设备已显示，方案联动未允许" : "6 台模拟设备已准备好";
-  $("#homePermissionDescription").textContent = granted ? "可以查看状态；每一次执行仍会单独征得你的同意。" : "查看设备不需要权限，真正加入方案时再由你决定。";
+  $("#homePermissionDescription").textContent = granted ? "设备状态已同步；每一次执行仍会单独征得你的同意。" : "连接后可同步设备状态；每次执行仍会单独确认。";
   $("#connectHomeButton").textContent = granted ? "刷新状态" : "允许方案联动";
   $("#connectHomeButton").disabled = false;
 }
@@ -1373,6 +1369,7 @@ function submitMoment(event) {
 function resetAIStudio() {
   clearTimeout(state.aiGenerationTimer);
   state.aiGenerationTimer = null;
+  stopAIGenerationProgress(true);
   state.aiSourceSelected = false;
   state.aiStyle = AI_ART_STYLE.STICKER;
   state.aiJobId = null;
@@ -1381,9 +1378,12 @@ function resetAIStudio() {
   state.aiSourceDataUrl = null;
   state.aiStyleReferenceFile = null;
   state.aiStyleReferenceDataUrl = null;
+  state.aiCustomPrompt = "";
   state.aiGeneratedImage = null;
   $("#aiPhotoInput").value = "";
   $("#aiStyleReferenceInput").value = "";
+  $("#aiCustomPrompt").value = "";
+  $("#aiCustomPromptCount").textContent = "0";
   $("#aiUploadConsent").checked = false;
   $("#aiPhotoPreview").src = "assets/community-feature-arched.webp";
   $("#aiSourceTitle").textContent = "拍摄或选择一张照片";
@@ -1393,6 +1393,7 @@ function resetAIStudio() {
   $("#aiStyleReferenceDescription").textContent = "支持 JPG、PNG、WebP，建议画风清晰统一";
   $("#clearAIStyleReferenceButton").classList.add("hidden");
   $("#aiStyleReferenceUploader").classList.add("hidden");
+  $("#aiCustomPromptField").classList.add("hidden");
   $$('[data-ai-style]').forEach(button => button.classList.toggle("active", button.dataset.aiStyle === AI_ART_STYLE.STICKER));
   $("#aiGenerationState").className = "ai-generation-state empty";
   $("#aiGenerationState").innerHTML = "<p>选好照片和风格后，就可以开始创作。</p>";
@@ -1428,7 +1429,8 @@ function openAIStudio() {
 
 function updateAIGenerationAvailability() {
   const referenceReady = state.aiStyle !== AI_ART_STYLE.COMIC || Boolean(state.aiStyleReferenceDataUrl);
-  $("#startAIGenerationButton").disabled = !(state.aiSourceSelected && referenceReady && $("#aiUploadConsent").checked && state.miniMaxConfigured);
+  const customPromptReady = state.aiStyle !== AI_ART_STYLE.CUSTOM || state.aiCustomPrompt.trim().length >= 4;
+  $("#startAIGenerationButton").disabled = !(state.aiSourceSelected && referenceReady && customPromptReady && $("#aiUploadConsent").checked && state.miniMaxConfigured);
 }
 
 function readFileAsDataURL(file) {
@@ -1588,9 +1590,13 @@ function selectAIStyle(style) {
   state.aiStyle = style;
   $$('[data-ai-style]').forEach(item => item.classList.toggle("active", item.dataset.aiStyle === style));
   $("#aiStyleReferenceUploader").classList.toggle("hidden", style !== AI_ART_STYLE.COMIC);
+  $("#aiCustomPromptField").classList.toggle("hidden", style !== AI_ART_STYLE.CUSTOM);
   if (style === AI_ART_STYLE.COMIC && !state.aiStyleReferenceDataUrl) {
     $("#aiGenerationState").className = "ai-generation-state empty";
     $("#aiGenerationState").innerHTML = "<p>先选择宝宝照片，再上传一张你喜欢的风格参考图。</p>";
+  } else if (style === AI_ART_STYLE.CUSTOM && state.aiCustomPrompt.trim().length < 4) {
+    $("#aiGenerationState").className = "ai-generation-state empty";
+    $("#aiGenerationState").innerHTML = "<p>先选择宝宝照片，再写下至少 4 个字的画面描述。</p>";
   } else {
     $("#aiGenerationState").className = "ai-generation-state empty";
     $("#aiGenerationState").innerHTML = "<p>选好照片和风格后，就可以开始创作。</p>";
@@ -1601,11 +1607,39 @@ function selectAIStyle(style) {
 function styleLabel(style) {
   return {
     sticker: "宝宝大头贴",
-    comic: "参考图同款"
+    minimax: "MiniMax 灵感",
+    comic: "参考图同款",
+    custom: "自定义生成"
   }[style] || "宝宝小作品";
 }
 
+function updateAIGenerationProgress(value) {
+  state.aiGenerationProgress = Math.max(0, Math.min(100, Math.round(value)));
+  const bar = $("#aiGenerationProgressBar");
+  const copy = $("#aiGenerationProgressValue");
+  bar?.style.setProperty("--progress", String(state.aiGenerationProgress / 100));
+  bar?.setAttribute("aria-valuenow", String(state.aiGenerationProgress));
+  if (copy) copy.textContent = `${state.aiGenerationProgress}%`;
+}
+
+function stopAIGenerationProgress(reset = false) {
+  clearInterval(state.aiGenerationProgressTimer);
+  state.aiGenerationProgressTimer = null;
+  if (reset) state.aiGenerationProgress = 0;
+}
+
+function startAIGenerationProgress() {
+  stopAIGenerationProgress(true);
+  updateAIGenerationProgress(8);
+  state.aiGenerationProgressTimer = setInterval(() => {
+    const remaining = 92 - state.aiGenerationProgress;
+    updateAIGenerationProgress(state.aiGenerationProgress + Math.max(1, remaining * .08));
+  }, 700);
+}
+
 function renderAIArtworkResults() {
+  updateAIGenerationProgress(100);
+  stopAIGenerationProgress();
   const label = styleLabel(state.aiStyle);
   $("#aiGenerationState").className = `ai-generation-state completed style-${state.aiStyle}`;
   $("#aiGenerationState").innerHTML = `<p><b>${escapeHTML(label)}已经画好</b><span>由 MiniMax 生成，先私密保存再决定是否分享。</span></p><div class="ai-result-grid single"><button class="active" type="button"><span><img src="${escapeHTML(state.aiGeneratedImage)}" alt="${escapeHTML(label)}生成结果" width="720" height="900" /></span><b>${escapeHTML(label)}</b></button></div>`;
@@ -1621,7 +1655,8 @@ async function startAIGeneration() {
   state.aiJobId = job.id;
   communityStore.updateArtworkJob(job.id, AI_JOB_STATUS.GENERATING);
   $("#aiGenerationState").className = "ai-generation-state generating";
-  $("#aiGenerationState").innerHTML = '<div class="art-skeleton"><i></i><span></span></div><p><b>MiniMax 正在把照片画成小作品</b><span>通常需要几十秒，可以随时取消。</span></p>';
+  $("#aiGenerationState").innerHTML = '<div class="art-skeleton"><i></i><span></span></div><div class="ai-generation-copy"><p><b>MiniMax 正在把照片画成小作品</b><span>通常需要几十秒，可以随时取消。</span></p><div class="ai-generation-progress" id="aiGenerationProgressBar" role="progressbar" aria-label="图片生成进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="8"><i></i></div><small id="aiGenerationProgressValue">8%</small></div>';
+  startAIGenerationProgress();
   $("#startAIGenerationButton").classList.add("hidden");
   $("#cancelAIGenerationButton").classList.remove("hidden");
   state.aiAbortController = new AbortController();
@@ -1637,6 +1672,7 @@ async function startAIGeneration() {
         imageDataUrl: referenceBoard.dataUrl,
         styleSignals: referenceBoard.styleSignals,
         style: state.aiStyle,
+        customPrompt: state.aiStyle === AI_ART_STYLE.CUSTOM ? state.aiCustomPrompt.trim() : "",
         babyName: activeBaby().name,
         consent: true
       })
@@ -1648,6 +1684,7 @@ async function startAIGeneration() {
     renderAIArtworkResults();
   } catch (error) {
     if (error.name === "AbortError") return;
+    stopAIGenerationProgress();
     communityStore.updateArtworkJob(job.id, AI_JOB_STATUS.FAILED, { errorCode: error.message });
     $("#aiGenerationState").className = "ai-generation-state empty";
     $("#aiGenerationState").innerHTML = `<p><b>这次没有生成成功</b><span>${escapeHTML(error.message)}</span></p>`;
@@ -1663,6 +1700,7 @@ function cancelAIGeneration() {
   state.aiAbortController?.abort();
   clearTimeout(state.aiGenerationTimer);
   state.aiGenerationTimer = null;
+  stopAIGenerationProgress(true);
   if (state.aiJobId) communityStore.updateArtworkJob(state.aiJobId, AI_JOB_STATUS.CANCELLED);
   closeModal($("#aiArtModal"));
   showToast("创作已取消，本次结果没有被保存");
@@ -1802,6 +1840,11 @@ $("#closeAIArtModal").addEventListener("click", closeAIStudio);
 $("#aiPhotoInput").addEventListener("change", selectAIPhoto);
 $("#aiStyleReferenceInput").addEventListener("change", selectAIStyleReference);
 $("#clearAIStyleReferenceButton").addEventListener("click", clearAIStyleReference);
+$("#aiCustomPrompt").addEventListener("input", event => {
+  state.aiCustomPrompt = event.currentTarget.value;
+  $("#aiCustomPromptCount").textContent = String(state.aiCustomPrompt.length);
+  updateAIGenerationAvailability();
+});
 $("#aiUploadConsent").addEventListener("change", updateAIGenerationAvailability);
 $$('[data-ai-style]').forEach(button => button.addEventListener("click", () => {
   selectAIStyle(button.dataset.aiStyle);
@@ -1827,10 +1870,8 @@ $$('#timelineFilters [data-filter]').forEach(button => button.addEventListener("
   renderTimeline();
 }));
 $("#recordButton").addEventListener("click", toggleRecording);
-$("#demoButton").addEventListener("click", () => runInference("sleepy", true));
-$("#lowConfidenceDemoButton").addEventListener("click", () => runInference("low", true));
-$("#anomalyDemoButton").addEventListener("click", () => runInference("anomaly", true));
 $("#newAnalysisButton").addEventListener("click", resetRecorder);
+$("#retryLowConfidenceButton").addEventListener("click", resetRecorder);
 $("#safetyPrimaryButton").addEventListener("click", () => {
   if (state.safetyResult?.kind === "emergency") return showToast("如在中国大陆，请立即拨打 120 或前往急诊");
   navigate("home");

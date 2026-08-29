@@ -32,11 +32,23 @@ const contentTypes = new Map([
 const styleConfigs = {
   sticker: {
     aspectRatio: "1:1",
+    promptOptimizer: false,
     prompt: "Create a photorealistic Korean-style giant-head photo sticker from reference image 1. Preserve the baby's exact identity, infant age, facial proportions, skin tone, eye shape and recognizable expression. Use an extreme close-up centered head portrait: only the complete head and a tiny amount of neck, no torso, no hands, no room or original background. Keep realistic skin and hair texture, bright high-key studio lighting and a pure white seamless background. Add a clean white die-cut sticker outline around the hair and chin with a very soft pale-gray contact shadow. The result must look like a professionally retouched real photo sticker, cute and lively, not an illustration, not 3D, not a painting, not an adult, no text, no watermark, no collage."
+  },
+  minimax: {
+    aspectRatio: "3:4",
+    promptOptimizer: true,
+    prompt: "Create an imaginative, polished MiniMax-native portrait artwork from reference image 1. Preserve the baby's identity, infant age and recognizable facial features while freely developing a delightful scene, expressive lighting, layered details and a refined editorial finish. Keep one clear baby subject, family-friendly content, no visible text, no watermark and no collage."
   },
   comic: {
     aspectRatio: "3:4",
-    prompt: "Reference image 1 is a two-panel reference board with a narrow identity panel on the LEFT and a deliberately larger style panel on the RIGHT. Preserve the baby's identity, infant age, facial structure and recognizable expression from the left panel. Treat the entire right panel as the dominant and mandatory visual-style target. Match its medium, line quality, brush texture, dominant palette, saturation, contrast, shape simplification, shading, edge treatment and background treatment so the family can immediately recognize the uploaded reference style. Never copy the person, face, clothes, pose, symbols or text from the right panel. Output only one coherent finished portrait of the baby: no split screen, no reference board, no before-and-after layout, no collage, no captions and no watermark."
+    promptOptimizer: false,
+    prompt: "Reference image 1 is a two-panel reference board with a narrow identity panel on the LEFT and a deliberately larger style-and-composition panel on the RIGHT. Preserve the baby's identity, infant age, facial structure and recognizable expression from the left panel. Treat the entire right panel as the dominant and mandatory target. Closely match its framing, camera angle, subject scale, pose silhouette, spatial arrangement and background composition, as well as its medium, line quality, brush texture, dominant palette, saturation, contrast, shape simplification, shading and edge treatment. Replace the right-panel character with the baby from the left panel; never copy the right-panel person's identity, visible words, logos or watermark. The family should immediately recognize both the uploaded baby's appearance and the uploaded reference's composition and visual style. Output only one coherent finished artwork: no split screen, no reference board, no before-and-after layout, no collage and no captions."
+  },
+  custom: {
+    aspectRatio: "3:4",
+    promptOptimizer: true,
+    prompt: "Create one polished, family-friendly portrait artwork from reference image 1. Preserve the baby's identity, infant age and recognizable facial features while following the user's creative direction. Keep one clear baby subject, coherent composition, no visible text, no watermark and no collage."
   }
 };
 
@@ -155,6 +167,10 @@ async function handleImageGeneration(request, response) {
   const body = await readJson(request, 24 * 1024 * 1024);
   if (body.consent !== true) return writeJson(response, 400, { message: "需要明确同意本次照片上传生成。" });
   const style = styleConfigs[body.style] ? body.style : "sticker";
+  const customPrompt = style === "custom"
+    ? String(body.customPrompt || "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 400)
+    : "";
+  if (style === "custom" && customPrompt.length < 4) return writeJson(response, 400, { message: "请先填写至少 4 个字的生成描述。" });
   const referenceImage = parseImageDataUrl(body.imageDataUrl, style === "comic" ? "合成参考图" : "宝宝照片");
   const sourceDir = path.join(runtimeRoot, "uploads");
   await mkdir(sourceDir, { recursive: true });
@@ -168,12 +184,12 @@ async function handleImageGeneration(request, response) {
   try {
     payload = await miniMaxRequest("/image_generation", {
       model: "image-01",
-      prompt: `${config.prompt}${measuredStyleGuidance} The baby's name is ${String(body.babyName || "宝宝").slice(0, 12)}; never render the name as visible text.`,
+      prompt: `${config.prompt}${measuredStyleGuidance}${customPrompt ? ` User creative direction: ${customPrompt}.` : ""} The baby's name is ${String(body.babyName || "宝宝").slice(0, 12)}; never render the name as visible text.`,
       subject_reference: subjectReference,
       aspect_ratio: config.aspectRatio,
       response_format: "base64",
       n: 1,
-      prompt_optimizer: false
+      prompt_optimizer: config.promptOptimizer
     });
   } finally {
     await unlink(identitySource.sourcePath).catch(() => {});

@@ -293,7 +293,7 @@
       </section>
 
       <section class="view" id="devicesView" aria-labelledby="devicesTitle">
-        <div class="page-heading"><div><p class="section-label">哭因驱动的环境响应</p><h1 id="devicesTitle">我的家庭</h1><p>这里展示设备状态，不提供脱离哭声分析的通用控制。</p></div></div>
+        <div class="page-heading"><div><p class="section-label">哭因驱动的环境响应</p><h1 id="devicesTitle">我的家庭</h1></div></div>
         <section class="home-permission-card" id="homePermissionCard">
           <div><span class="permission-icon" aria-hidden="true">⌂</span><p><b id="homePermissionTitle">家庭设备权限待确认</b><small id="homePermissionDescription">连接设备时才会请求权限。</small></p></div>
           <button class="primary-button" id="connectHomeButton" type="button">连接家庭设备</button>
@@ -306,8 +306,7 @@
           <div class="section-heading"><h2 id="deviceListTitle">设备</h2><span class="caption" id="deviceCountLabel">5 台</span></div>
           <div class="device-list" id="deviceList"></div>
         </section>
-        <aside class="policy-note"><span aria-hidden="true">i</span><p><b>不支持任意控制</b>设备动作只会由安全且高置信度的哭声结果生成。执行前必须再次确认。</p></aside>
-        <section class="future-adapters"><h2>未来适配接口</h2><p id="futureAdapterList"></p></section>
+        <aside class="policy-note"><span aria-hidden="true">i</span><p><b>不支持任意控制</b>设备动作只会由安全且高可信度的哭声结果生成。执行前必须再次确认。</p></aside>
       </section>
 
       <section class="view community-view" id="communityView" aria-labelledby="communityTitle">
@@ -440,7 +439,7 @@
         <div class="hidden" id="recorderStage">
           <nav class="secondary-nav"><button class="back-button" id="editSafetyButton" type="button">‹ 安全检查</button><span>哭声检测</span><i></i></nav>
           <div class="secondary-heading"><p class="section-label">需求分析</p><h1>现在听听禾禾想说什么</h1><p>手机距离宝宝约 30-50 cm，尽量避开成人说话声。</p></div>
-          <div class="safety-passed"><span>✓</span><p><b>安全问询已完成</b><small>未报告明显危险体征，这不代表排除疾病</small></p></div>
+          <div class="safety-passed"><span>✓</span><p><b>安全问询已完成</b></p></div>
           <section class="context-snapshot"><p class="section-label">本次自动带入</p><div><span>2 小时前喂养</span><span>清醒 1 小时 26 分</span><span>48 分前换尿布</span></div></section>
           <div class="recorder-panel">
             <div class="quality-pill" id="qualityPill"><i></i><b>等待开始</b></div>
@@ -448,8 +447,7 @@
             <div class="timer"><strong id="timerValue">5</strong><span>秒</span></div>
             <p id="recordStatus">轻触按钮开始 5 秒采集</p>
             <button class="record-button" id="recordButton" type="button" aria-label="开始 5 秒录音"><span></span></button>
-            <p class="permission-hint">首次使用时才会请求麦克风权限；录音中再次轻触可提前结束。</p>
-            <div class="demo-actions"><button class="demo-link" id="demoButton" type="button">演示高置信度困倦</button><button class="demo-link" id="lowConfidenceDemoButton" type="button">演示低置信度</button><button class="demo-link danger" id="anomalyDemoButton" type="button">演示异常哭声</button></div>
+            <p class="permission-hint">录音中再次轻触可提前结束。</p>
           </div>
           <aside class="safety-inline"><span>!</span><p><strong>状态随时可能变化</strong>如出现呼吸、肤色或反应异常，请停止分析并立即寻求专业帮助。</p></aside>
         </div>
@@ -473,26 +471,25 @@
 
         <div class="hidden" id="resultStage">
           <nav class="secondary-nav"><button class="back-button" id="newAnalysisButton" type="button">‹ 重新分析</button><span>分析结果</span><button class="done-button" type="button" data-back-home>完成</button></nav>
-          <div class="safety-cleared-banner"><span>✓</span><p><b>安全层允许继续需求分析</b><small>未报告危险体征，声音在演示模型范围内</small></p></div>
           <section class="result-hero" id="resultHero" data-reason="sleepy">
             <div class="match-ring" id="matchRing"><span><strong id="topProbability">78%</strong><small>综合匹配度</small></span></div>
-            <p class="section-label" id="confidenceLabel">较高置信度</p>
+            <p class="section-label" id="confidenceLabel">较高可信度</p>
             <h1>更可能是<span id="topReason">困倦</span></h1>
             <p id="resultSummary">声音节奏与较长清醒时长更接近困倦信号。</p>
           </section>
           <section class="result-card probability-card">
             <div class="section-heading"><h2>可能性分布</h2><button class="info-button" id="probabilityInfo" type="button" aria-label="概率说明">i</button></div>
+            <div class="low-confidence-retry hidden" id="lowConfidenceRetry"><p id="lowConfidenceHint">这段声音可能受环境噪声影响，判断可信度较低。要重新录音吗？</p><button class="small-button" id="retryLowConfidenceButton" type="button">重新录音</button></div>
             <div class="prob-row reason-hunger"><div><i class="dot hunger-dot"></i><b>饥饿</b><strong id="hungerValue">16%</strong></div><span><i id="hungerBar"></i></span></div>
             <div class="prob-row reason-sleepy"><div><i class="dot sleepy-dot"></i><b>困倦</b><strong id="sleepyValue">78%</strong></div><span><i id="sleepyBar"></i></span></div>
             <div class="prob-row reason-discomfort"><div><i class="dot discomfort-dot"></i><b>一般性不适</b><strong id="discomfortValue">6%</strong></div><span><i id="discomfortBar"></i></span></div>
           </section>
-          <section class="result-card evidence-card"><p class="section-label">判断依据</p><h2>哪些信息影响了结果</h2><ul id="evidenceList"></ul></section>
           <section class="result-card care-action-card" id="actionCard">
             <p class="section-label">照护建议</p><h2 id="actionTitle">降低刺激，准备入睡</h2><p id="actionDescription">减少说话与逗弄，使用禾禾熟悉的抱哄方式并观察。</p>
             <button class="secondary-button" id="startObserveButton" type="button">开始照做并观察</button>
           </section>
           <section class="result-card checklist-card hidden" id="checklistCard">
-            <p class="section-label warning-label">需要人工排查</p><h2>暂时还不能可靠判断</h2><p>低置信度结果不会生成或执行任何智能家居方案。</p>
+            <p class="section-label warning-label">需要人工排查</p><h2>暂时还不能可靠判断</h2>
             <div id="checklistItems"><label><input type="checkbox" /><span><b>喂养</b>距离上次喂奶是否较久？</span></label><label><input type="checkbox" /><span><b>尿布</b>是否需要更换？</span></label><label><input type="checkbox" /><span><b>姿势</b>是否需要拍嗝或调整姿势？</span></label><label><input type="checkbox" /><span><b>环境</b>冷热、衣物、光线是否舒适？</span></label></div>
           </section>
           <section class="result-card automation-plan-card hidden" id="automationPlanCard">
@@ -624,8 +621,11 @@
       <label class="ai-source-card" for="aiPhotoInput"><span class="ai-source-thumb"><img id="aiPhotoPreview" src="assets/community-feature-arched.webp" alt="待创作照片预览" width="800" height="1000" /></span><span><b id="aiSourceTitle">拍摄或选择一张照片</b><small id="aiSourceDescription">支持 JPG、PNG、WebP，建议主体清晰</small></span><svg class="icon" aria-hidden="true"><use href="#i-chevron"/></svg></label>
       <fieldset class="ai-style-field"><legend>选择一种风格</legend><div class="ai-style-grid" id="aiStyleGrid">
         <button class="active" type="button" data-ai-style="sticker"><span class="style-swatch sticker"><img src="assets/ai-art-sticker.webp" alt="真人宝宝大头贴效果示例" width="720" height="900" /></span><b>宝宝大头贴</b><small>真人大头贴纸效果</small></button>
+        <button type="button" data-ai-style="minimax"><span class="style-swatch minimax"><img src="assets/ai-art-picturebook.webp" alt="MiniMax 原生创意风格示例" width="720" height="900" /></span><b>MiniMax 灵感</b><small>模型自由发挥画面</small></button>
         <button type="button" data-ai-style="comic"><span class="style-swatch comic"><img src="assets/community-avatar-kid.webp" alt="原始照片示例" width="658" height="658" /><img src="assets/ai-art-picturebook.webp" alt="参考图风格转换示例" width="720" height="900" /></span><b>参考图同款</b><small>上传喜欢的画风</small></button>
+        <button type="button" data-ai-style="custom"><span class="style-swatch custom"><img src="assets/community-feature-arched.webp" alt="自定义生成画面示例" width="800" height="1000" /></span><b>自定义生成</b><small>自己提供生成词</small></button>
       </div></fieldset>
+      <label class="field ai-custom-prompt hidden" id="aiCustomPromptField"><span>描述想生成的画面</span><textarea id="aiCustomPrompt" rows="3" maxlength="400" placeholder="例如：宝宝坐在月亮形小船里，柔和紫色夜空，绘本质感"></textarea><small><span id="aiCustomPromptCount">0</span>/400</small></label>
       <div class="ai-reference-uploader hidden" id="aiStyleReferenceUploader">
         <input class="visually-hidden" id="aiStyleReferenceInput" type="file" accept="image/jpeg,image/png,image/webp" />
         <div class="ai-reference-heading"><div><b>再上传一张风格参考图</b><small>只学习画风，不复制参考图里的人物</small></div><span>必选</span></div>

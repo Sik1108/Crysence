@@ -94,16 +94,19 @@ test("direct file opening explains the module restriction and links to localhost
 });
 
 test("community masonry follows a compact two-column social feed rhythm", () => {
-  assert.match(css, /\.community-feed\s*\{[^}]*columns:\s*2;[^}]*column-gap:\s*4px;[^}]*padding:\s*2px 5px 84px;/s);
+  assert.match(css, /\.community-feed\s*\{[^}]*columns:\s*2;[^}]*column-gap:\s*4px;[^}]*padding:\s*2px 2px 84px;/s);
   assert.match(css, /\.community-post-card\.is-tall \.community-post-image\s*\{\s*aspect-ratio:\s*5 \/ 6;/);
   assert.match(css, /\.community-post-card\.is-short \.community-post-image\s*\{\s*aspect-ratio:\s*4 \/ 3;/);
   assert.match(css, /-webkit-line-clamp:\s*2;/);
 });
 
-test("AI studio separates fixed styles from user-supplied style reference", () => {
+test("AI studio supports native, reference-led and custom MiniMax generation", () => {
   assert.match(html, /id="aiStyleReferenceInput"/);
   assert.match(html, /id="clearAIStyleReferenceButton"[^>]*aria-label="删除风格参考图"/);
   assert.match(html, />参考图同款</);
+  assert.match(html, /data-ai-style="minimax"/);
+  assert.match(html, /data-ai-style="custom"/);
+  assert.match(html, /id="aiCustomPrompt"/);
   assert.match(html, /class="style-swatch sticker"><img src="assets\/ai-art-sticker\.webp"/);
   assert.match(html, /class="style-swatch comic"><img[\s\S]*?<img/);
   assert.doesNotMatch(html, /绘本小主角|data-ai-style="pictureBook"/);
@@ -113,6 +116,8 @@ test("AI studio separates fixed styles from user-supplied style reference", () =
   assert.match(app, /function clearAIStyleReference\(\)/);
   assert.match(app, /function analyzeAIStyleReference\(image\)/);
   assert.match(app, /styleSignals:\s*referenceBoard\.styleSignals/);
+  assert.match(app, /customPrompt:\s*state\.aiStyle === AI_ART_STYLE\.CUSTOM/);
+  assert.match(app, /id="aiGenerationProgressBar"/);
   assert.match(server, /photorealistic Korean-style giant-head photo sticker/);
   assert.doesNotMatch(server, /pictureBook|children's picture-book character/);
   assert.match(server, /Reference image 1 is a two-panel reference board/);
@@ -120,5 +125,16 @@ test("AI studio separates fixed styles from user-supplied style reference", () =
   assert.match(server, /Treat these measured properties as hard visual constraints/);
   assert.doesNotMatch(server, /styleSource|styleReferenceDataUrl/);
   assert.match(server, /subjectReference = \[\s*\{ type: "character", image_file:[\s\S]*?\}\s*\];/);
-  assert.match(server, /prompt_optimizer:\s*false/);
+  assert.match(server, /Closely match its framing, camera angle, subject scale, pose silhouette, spatial arrangement and background composition/);
+  assert.match(server, /User creative direction/);
+  assert.match(server, /prompt_optimizer:\s*config\.promptOptimizer/);
+});
+
+test("latest simplification removes demo controls and redundant result or device cards", () => {
+  assert.doesNotMatch(html, /id="demoButton"|id="lowConfidenceDemoButton"|id="anomalyDemoButton"/);
+  assert.doesNotMatch(html, /safety-cleared-banner|id="evidenceList"|未来适配接口|id="futureAdapterList"/);
+  assert.match(html, /id="lowConfidenceRetry"/);
+  assert.match(app, /classList\.toggle\("community-active", name === "community"\)/);
+  assert.match(app, /正在提取声音特征/);
+  assert.doesNotMatch(`${html}\n${app}`, /置信度/);
 });
