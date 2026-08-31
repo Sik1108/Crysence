@@ -1405,18 +1405,12 @@ function resetAIStudio() {
 }
 
 async function checkMiniMaxStatus() {
-  const box = $("#miniMaxStatus");
   try {
     const response = await fetch("/api/minimax/status");
     const status = await response.json();
     state.miniMaxConfigured = Boolean(status.imageConfigured);
-    box.classList.toggle("unavailable", !state.miniMaxConfigured);
-    $("b", box).textContent = state.miniMaxConfigured ? "MiniMax 图像服务已连接" : "MiniMax 图像服务待配置";
-    $("small", box).textContent = state.miniMaxConfigured ? "照片会在你明确同意后，仅用于本次生成。" : "请在部署环境的安全变量中配置 MINIMAX_API_KEY。";
   } catch {
     state.miniMaxConfigured = false;
-    $("b", box).textContent = "暂时无法连接 MiniMax";
-    $("small", box).textContent = "请确认已通过 npm run dev 启动本地服务。";
   }
   updateAIGenerationAvailability();
 }

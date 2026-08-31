@@ -4485,47 +4485,6 @@ main {
   accent-color: var(--brand);
 }
 
-.ai-mock-banner {
-  padding: 13px;
-  display: grid;
-  grid-template-columns: 36px 1fr;
-  gap: 10px;
-  align-items: start;
-  border-radius: 16px;
-  background: #edf9f7;
-}
-
-.ai-mock-banner > span {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--pastel-mint-strong);
-  font-size: 13px;
-  font-weight: 750;
-}
-
-.ai-mock-banner p {
-  margin: 0;
-}
-
-.ai-mock-banner b,
-.ai-mock-banner small {
-  display: block;
-}
-
-.ai-mock-banner b {
-  font-size: 15px;
-}
-
-.ai-mock-banner small {
-  margin-top: 2px;
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
 .ai-source-card {
   width: 100%;
   min-height: 82px;
@@ -5877,7 +5836,6 @@ main {
 .compose-actions small { color: var(--text-tertiary); font-size: 12px; }
 .compose-actions i { color: var(--text-tertiary); font-style: normal; }
 
-.ai-mock-banner.live-service > span { color: #6f58a2; }
 .ai-source-card { cursor: pointer; }
 .ai-source-card > .icon { width: 17px; height: 17px; }
 .ai-upload-consent { display: flex; gap: 10px; align-items: flex-start; margin: 15px 0; padding: 12px; border-radius: 15px; background: #f6f7f6; }

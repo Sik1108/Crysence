@@ -137,4 +137,5 @@ test("latest simplification removes demo controls and redundant result or device
   assert.match(app, /classList\.toggle\("community-active", name === "community"\)/);
   assert.match(app, /正在提取声音特征/);
   assert.doesNotMatch(`${html}\n${app}`, /置信度/);
+  assert.doesNotMatch(html, /id="miniMaxStatus"|暂时无法连接 MiniMax/);
 });
